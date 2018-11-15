@@ -12,12 +12,7 @@
 |组件|git|git -xxx|yum安装，直接使用|
 
 ## STEP ONE
-- 个人电脑目前用的win10 系统，powershell还是不错的，为了方便，先给powershell安装ssh
-  - 以管理员身份运行 powershell_ise
-  - find-module *ssh*
-    - 在我的PC，运行这个名利，提示要安装N-Get软件，点了同意（PackageManagement）
-  - 系统会查询出来 ssh相关的组件
-    - 
+
 - 安装系统
   - 更新 yum update && yum upgrade
 ## STEP TWO
