@@ -5,7 +5,7 @@
 |类型|名称|启动命令|备注|
 |-|-|-|-|
 |组件|JDK|java -xxx||
-|服务|MySQL|启动服务器 systemctl start mysqld.service <br>启动客户端 mysql -uroot -pxxxx|20181113版本虚拟机里面root密码为Ro998otPass&|
+|服务|MySQL|启动服务器 systemctl start mysqld.service <br>启动客户端 mysql -uroot -pxxxx|20181113版本虚拟机里面root密码为Ro998otPass&<br>配置文件在 /etc/my.cnf|
 |服务|Redis|启动服务： redis-server |已经加入环境变量 <br> 密码 Red!76is@03|
 |服务|Nginx|启动： nginx|已经加入环境变量|
 |组件|Maven|命令 mvn -xxx|已经加入环境变量|
