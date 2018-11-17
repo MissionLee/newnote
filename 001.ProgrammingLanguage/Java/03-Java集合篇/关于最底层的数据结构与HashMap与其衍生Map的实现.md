@@ -27,7 +27,11 @@
 
 - ！Hash表的主干是数组 -》 一次定位就可以完成操作
 - 哈希函数： 把元素的关键字 映射到数组的某个位置
-- 从 HashMap开始分析
+## 从 HashMap开始分析
+
+> JDK 1.8对HashMap进行了比较大的优化，底层实现由之前的“数组+链表”改为“数组+链表+红黑树”, 当某个链表长度大于8之后，就会将其调整为红黑树 putVal  &  putTreeVal
+
+> putVal 方法要多分析一下，因为HashMap的衍生类就是重写了
   - HashMap 的主干数组是一个 Entry数组。主干数组的长度一定是2的次幂
     - Entry是 HashMap 里的一个 静态内部类
       - Entry 主要有四个成员
@@ -65,29 +69,42 @@
             n = (tab = resize()).length;
             // 下面 (n -1)&hash 就是 indexFor 函数，如果这个位置为空，就放个node在这里 ， 如果不为空，就要判断是更新已经存在的值，还是延长链表
         if ((p = tab[i = (n - 1) & hash]) == null)
+        // 当前没有元素，放个新的
             tab[i] = newNode(hash, key, value, null);
         else {
             Node<K,V> e; K k;
+            // 当前已经有元素了
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
+                // hash相等的情况，如果key是同一个，就更新
                 e = p;
             else if (p instanceof TreeNode)
+            // 如果 不是同一个key，当前是TreeNode，就调用 putTreeVal
                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
             else {
+                // 这种情况就是 普通node
                 for (int binCount = 0; ; ++binCount) {
+                    // 一个循环，找到key 相等的位置更新
                     if ((e = p.next) == null) {
+                        // 链表的下一个 为null （这个也是意味着，找到了这个链的尽头，都没有同一个key）
+                        // 放一个新的节点，并且判断是否需要 变成红黑书
                         p.next = newNode(hash, key, value, null);
                         if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
                             treeifyBin(tab, hash);
                         break;
                     }
+                    // 如果  链表的下一节 hash与现在相当，并且 key 也相等 
                     if (e.hash == hash &&
                         ((k = e.key) == key || (key != null && key.equals(k))))
                         break;
                     p = e;
                 }
             }
+            // 上面的情况都跑完了，e已经被赋值了
+            //  e 是第一个元素，或者 用 puttreeval（红黑书中）获得了一个元素，或者在链表中循环到一个元素
             if (e != null) { // existing mapping for key
+            // 如果找到的符合条件的这个 元素 是原本有值得，更新这个值，并且返回旧的值
+            // 如果是新的节点，那么前面就已经放进去就完事了
                 V oldValue = e.value;
                 if (!onlyIfAbsent || oldValue == null)
                     e.value = value;
@@ -95,6 +112,7 @@
                 return oldValue;
             }
         }
+        // 新的结点会有以下的后续操作
         ++modCount;
         if (++size > threshold)
             resize();
@@ -118,3 +136,24 @@
   - 主要：  newCap = oldeCap << 1 ,并且  newCap 要在默认容量 和 最大容量 之间。   threshold 根据 新的总容量的情况做调整，最典型的是 翻倍
   - 之后遍历整个 oldTab，把里面的内容，复制给 newTab
   - 因为容量扩大两倍了，所以链表里面的元素的index位置，要么在原处，要么在两倍位置。
+
+  ## LinkedHashMap
+
+> HashTable + LinkedList 
+```java
+    static class Entry<K,V> extends HashMap.Node<K,V> {
+        Entry<K,V> before, after;
+        Entry(int hash, K key, V value, Node<K,V> next) {
+            super(hash, key, value, next);
+        }
+    }
+```
+
+
+这里的 before 和 after 就是 linked 的关键,通过提供 几个关键方法的 多态，来改变HashMap 的一些特性。
+
+主要实现多态的地方
+- put方法里面的（put本身没有重写）
+  - newNode 返回 LinkedHashMap 的Entry了
+  - atferNodeAccess(e) 对于节点的额外处理，HashMap里面是个空方法，LinkedHashMap在这里实现功能：把新加入的这个元素，放到链表最后
+  - afterNodeInsertion(evict);HashMap里面是个空方法，LinkedHashMap在这里实现功能： 如果 true，一处最早放入Map的对象。 这个方法在LinkedHashMap里面虽然有重写，但是也是不会有什么作用的，因为判断条件被写死为 false，如果有相关需求，要自己写更改，重写。
