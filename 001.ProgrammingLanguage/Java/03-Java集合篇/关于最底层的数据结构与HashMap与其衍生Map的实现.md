@@ -137,7 +137,7 @@
   - 之后遍历整个 oldTab，把里面的内容，复制给 newTab
   - 因为容量扩大两倍了，所以链表里面的元素的index位置，要么在原处，要么在两倍位置。
 
-  ## LinkedHashMap
+## LinkedHashMap
 
 > HashTable + LinkedList 
 ```java
@@ -157,3 +157,103 @@
   - newNode 返回 LinkedHashMap 的Entry了
   - atferNodeAccess(e) 对于节点的额外处理，HashMap里面是个空方法，LinkedHashMap在这里实现功能：把新加入的这个元素，放到链表最后
   - afterNodeInsertion(evict);HashMap里面是个空方法，LinkedHashMap在这里实现功能： 如果 true，一处最早放入Map的对象。 这个方法在LinkedHashMap里面虽然有重写，但是也是不会有什么作用的，因为判断条件被写死为 false，如果有相关需求，要自己写更改，重写。
+
+ ### 这里还是看一下 HashTable + LinkedList 到底是如何实现的 
+```java
+// 把 LinkedHashMap 的Entry详细分析一下
+    static class Entry<K,V> extends HashMap.Node<K,V> {
+        Entry<K,V> before, after;
+        Entry(int hash, K key, V value, Node<K,V> next) {
+            super(hash, key, value, next);
+        }
+    }
+// 下面是 super的具体内容
+        Node(int hash, K key, V value, Node<K,V> next) {
+            this.hash = hash;
+            this.key = key;
+            this.value = value;
+            this.next = next;
+        }
+```
+- 我们把LinkedHashMap的所有属性列出来
+  - 继承来的
+    - int hash Hash值
+    - key 要存的Key
+    - value 要存的Value
+    - next 下一项 HashMap同一个index项的下一项（单项链表）
+  - 自己独有的
+    - before 前元素
+    - atfer 后元素（有了前后就可以简单遍历了，我们去看看LinkedHashMap的Iterator）
+- 我们来看看 before / after 是如何处理的
+ - 首先回看 put方法的流程（在HashMap中）
+   - 略去HashMap中的一些设计
+   - 主要调用了这两个方法（二选一）
+     - afterNodeAccess 调用在更新了一个节点值（Key相同）的情况
+     - atferNodeInsertion 调用在添加了一个新的节点的时候
+```java
+//当一个节点更新
+    void afterNodeAccess(Node<K,V> e) { // move node to last
+        LinkedHashMap.Entry<K,V> last;
+        if (accessOrder && (last = tail) != e) { //我们刚刚更新了这个值，按照List的要求，这个值从原来的位置拿掉，放到最后。
+        // 如果 当前元素，之前不知在tail 位置，就把这个元素放到tail位置
+            LinkedHashMap.Entry<K,V> p =
+                (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
+            p.after = null;
+            if (b == null) 
+                head = a;
+            else
+                b.after = a;
+            if (a != null)
+                a.before = b;
+            else
+                last = b;
+            if (last == null)
+                head = p;
+            else {
+                p.before = last;
+                last.after = p;
+            }
+            tail = p; // 主要就是这一个步骤，更新tail
+            ++modCount;
+        }
+    }
+// 当插入一个全新的节点 -》 在源码中这里永远不执行
+    void afterNodeInsertion(boolean evict) { // possibly remove eldest
+        LinkedHashMap.Entry<K,V> first;
+        // evict = true ，
+        if (evict && (first = head) != null && removeEldestEntry(first)) {
+            K key = first.key;
+            removeNode(hash(key), key, null, false, true);
+        }
+    }
+// 删除一个节点
+    void afterNodeRemoval(Node<K,V> e) { // unlink
+    // 主要操作就是取下来，把之前的 before after链接起来
+        LinkedHashMap.Entry<K,V> p =
+            (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
+        p.before = p.after = null;
+        if (b == null)
+            head = a;
+        else
+            b.after = a;
+        if (a == null)
+            tail = b;
+        else
+            a.before = b;
+    }
+
+```
+## TreeMap
+
+```java
+public class TreeMap<K,V>
+    extends AbstractMap<K,V>
+    implements NavigableMap<K,V>, Cloneable, java.io.Serializable
+{}
+```
+
+因为底层用的树形结构，所以相比于Hash，Link还是有其自己的特点。
+
+- 使用算法：红黑书（JDK1.8）
+- 二分法查找，查询复杂度 O(logN)
+- 在这里没有什么太多要将的内容可以查看 [红黑树-Java实现](../../../002.DataStructureAndAlgorithms/红黑树与其Java实现.md)
