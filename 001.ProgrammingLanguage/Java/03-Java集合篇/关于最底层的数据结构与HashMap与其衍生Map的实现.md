@@ -137,6 +137,12 @@
   - 之后遍历整个 oldTab，把里面的内容，复制给 newTab
   - 因为容量扩大两倍了，所以链表里面的元素的index位置，要么在原处，要么在两倍位置。
 
+### 找到了一张图
+
+图片来源 https://www.cnblogs.com/whgk/p/6169622.html
+
+![](./res/002.png)
+
 ## LinkedHashMap
 
 > HashTable + LinkedList 
