@@ -345,7 +345,7 @@ public class ExampleTypeHandler extends BaseTypeHandler<String> {
 
 最后，可以让 MyBatis 为你查找类型处理器：
 
-```
+```xml
 <!-- mybatis-config.xml -->
 <typeHandlers>
   <package name="org.mybatis.example"/>
@@ -381,7 +381,7 @@ public class GenericTypeHandler<E extends MyObject> extends BaseTypeHandler<E> {
 
 不过，我们可能不想存储名字，相反我们的 DBA 会坚持使用整形值代码。那也一样轻而易举： 在配置文件中把 `EnumOrdinalTypeHandler` 加到 `typeHandlers` 中即可， 这样每个 `RoundingMode` 将通过他们的序数值来映射成对应的整形。
 
-```
+```xml
 <!-- mybatis-config.xml -->
 <typeHandlers>
   <typeHandler handler="org.apache.ibatis.type.EnumOrdinalTypeHandler" javaType="java.math.RoundingMode"/>
@@ -394,7 +394,7 @@ public class GenericTypeHandler<E extends MyObject> extends BaseTypeHandler<E> {
 
 （下一节才开始介绍映射器文件，如果你是首次阅读该文档，你可能需要先跳过这里，过会再来看。）
 
-```
+```xml
 <!DOCTYPE mapper
     PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
@@ -444,7 +444,7 @@ public class GenericTypeHandler<E extends MyObject> extends BaseTypeHandler<E> {
 
 MyBatis 每次创建结果对象的新实例时，它都会使用一个对象工厂（ObjectFactory）实例来完成。 默认的对象工厂需要做的仅仅是实例化目标类，要么通过默认构造方法，要么在参数映射存在的时候通过参数构造方法来实例化。 如果想覆盖对象工厂的默认行为，则可以通过创建自己的对象工厂来实现。比如：
 
-```
+```java
 // ExampleObjectFactory.java
 public class ExampleObjectFactory extends DefaultObjectFactory {
   public Object create(Class type) {
@@ -459,6 +459,8 @@ public class ExampleObjectFactory extends DefaultObjectFactory {
   public <T> boolean isCollection(Class<T> type) {
     return Collection.class.isAssignableFrom(type);
   }}
+```
+```xml
 <!-- mybatis-config.xml -->
 <objectFactory type="org.mybatis.example.ExampleObjectFactory">
   <property name="someProperty" value="100"/>
@@ -473,6 +475,8 @@ ObjectFactory 接口很简单，它包含两个创建用的方法，一个是处
 
 ### 插件（plugins）
 
+> 这里应该是PageHelper实现的关键点
+
 MyBatis 允许你在已映射语句执行过程中的某一点进行拦截调用。默认情况下，MyBatis 允许使用插件来拦截的方法调用包括：
 
 - Executor (update, query, flushStatements, commit, rollback, getTransaction, close, isClosed)
@@ -484,7 +488,7 @@ MyBatis 允许你在已映射语句执行过程中的某一点进行拦截调用
 
 通过 MyBatis 提供的强大机制，使用插件是非常简单的，只需实现 Interceptor 接口，并指定想要拦截的方法签名即可。
 
-```
+```java
 // ExamplePlugin.java
 @Intercepts({@Signature(
   type= Executor.class,
@@ -500,6 +504,8 @@ public class ExamplePlugin implements Interceptor {
   public void setProperties(Properties properties) {
   }
 }
+```
+```xml
 <!-- mybatis-config.xml -->
 <plugins>
   <plugin interceptor="org.mybatis.example.ExamplePlugin">
@@ -530,21 +536,21 @@ MyBatis 可以配置成适应多种环境，这种机制有助于将 SQL 映射�
 
 为了指定创建哪种环境，只要将它作为可选的参数传递给 SqlSessionFactoryBuilder 即可。可以接受环境配置的两个方法签名是：
 
-```
+```java
 SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(reader, environment);
 SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(reader, environment, properties);
 ```
 
 如果忽略了环境参数，那么默认环境将会被加载，如下所示：
 
-```
+```java
 SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(reader);
 SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(reader, properties);
 ```
 
 环境元素定义了如何配置环境。
 
-```
+```xml
 <environments default="development">
   <environment id="development">
     <transactionManager type="JDBC">
@@ -577,7 +583,7 @@ SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(reader, propert
 
 - MANAGED – 这个配置几乎没做什么。它从来不提交或回滚一个连接，而是让容器来管理事务的整个生命周期（比如 JEE 应用服务器的上下文）。 默认情况下它会关闭连接，然而一些容器并不希望这样，因此需要将 closeConnection 属性设置为 false 来阻止它默认的关闭行为。例如:
 
-  ```
+  ```xml
   <transactionManager type="MANAGED">
     <property name="closeConnection" value="false"/>
   </transactionManager>
@@ -587,7 +593,7 @@ SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(reader, propert
 
 这两种事务管理器类型都不需要任何属性。它们不过是类型别名，换句话说，你可以使用 TransactionFactory 接口的实现类的完全限定名或类型别名代替它们。
 
-```
+```java
 public interface TransactionFactory {
   void setProperties(Properties props);  
   Transaction newTransaction(Connection conn);
@@ -597,7 +603,7 @@ public interface TransactionFactory {
 
 任何在 XML 中配置的属性在实例化之后将会被传递给 setProperties() 方法。你也需要创建一个 Transaction 接口的实现类，这个接口也很简单：
 
-```
+```java
 public interface Transaction {
   Connection getConnection() throws SQLException;
   void commit() throws SQLException;
@@ -657,7 +663,7 @@ dataSource 元素使用标准的 JDBC 数据源接口来配置 JDBC 连接对象
 
 你可以通过实现接口 `org.apache.ibatis.datasource.DataSourceFactory` 来使用第三方数据源：
 
-```
+```java
 public interface DataSourceFactory {
   void setProperties(Properties props);
   DataSource getDataSource();
@@ -666,7 +672,7 @@ public interface DataSourceFactory {
 
 `org.apache.ibatis.datasource.unpooled.UnpooledDataSourceFactory` 可被用作父类来构建新的数据源适配器，比如下面这段插入 C3P0 数据源所必需的代码：
 
-```
+```java
 import org.apache.ibatis.datasource.unpooled.UnpooledDataSourceFactory;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
         
@@ -680,7 +686,7 @@ public class C3P0DataSourceFactory extends UnpooledDataSourceFactory {
 
 为了令其工作，记得为每个希望 MyBatis 调用的 setter 方法在配置文件中增加对应的属性。下面是一个可以连接至 PostgreSQL 数据库的例子：
 
-```
+```xml
 <dataSource type="org.myproject.C3P0DataSourceFactory">
   <property name="driver" value="org.postgresql.Driver"/>
   <property name="url" value="jdbc:postgresql:mydb"/>
@@ -697,13 +703,13 @@ public class C3P0DataSourceFactory extends UnpooledDataSourceFactory {
 
 MyBatis 可以根据不同的数据库厂商执行不同的语句，这种多厂商的支持是基于映射语句中的 `databaseId` 属性。 MyBatis 会加载不带 `databaseId` 属性和带有匹配当前数据库 `databaseId` 属性的所有语句。 如果同时找到带有 `databaseId` 和不带 `databaseId` 的相同语句，则后者会被舍弃。 为支持多厂商特性只要像下面这样在 mybatis-config.xml 文件中加入 `databaseIdProvider` 即可：
 
-```
+```xml
 <databaseIdProvider type="DB_VENDOR" />
 ```
 
 这里的 DB_VENDOR 会通过 `DatabaseMetaData#getDatabaseProductName()` 返回的字符串进行设置。 由于通常情况下这个字符串都非常长而且相同产品的不同版本会返回不同的值，所以最好通过设置属性别名来使其变短，如下：
 
-```
+```xml
 <databaseIdProvider type="DB_VENDOR">
   <property name="SQL Server" value="sqlserver"/>
   <property name="DB2" value="db2"/>        
@@ -715,7 +721,7 @@ MyBatis 可以根据不同的数据库厂商执行不同的语句，这种多厂
 
 你可以通过实现接口 `org.apache.ibatis.mapping.DatabaseIdProvider` 并在 mybatis-config.xml 中注册来构建自己的 DatabaseIdProvider：
 
-```
+```xml
 public interface DatabaseIdProvider {
   void setProperties(Properties p);
   String getDatabaseId(DataSource dataSource) throws SQLException;
