@@ -22,6 +22,11 @@
 
 > Tips 1 : SqlSessionTemplate extends SqlSession
 
-- [SpringBoot中手动配置SqlSession](./01.SpringSeries/SpringDataSQL/配置MyBatis.md)
+- [SpringBoot项目中配置MyBatis](./01.SpringSeries/SpringDataSQL/003-有助于理解原理-手动与自动配置-MyBatiss.md)
   - 只要正确引入，并且 springboot.properties文件里面参数写好，SpringBoot就能自动帮我们配置好可用的 SqlSession
   - 即使这样，我还是探索了一下如何自己配置，因为注入过程，非常有利于对于 Mybatis底层的理解。
+  - SqlSessionTemplate 是我们直接使用到的
+- [SqlSessionTemplate](./01.SpringSeries/SpringDataSQL/001-SqlSessionTemplate.md)
+    - 使用JDK自带的Proxy，对SqlSession进行动态代理
+    - 实现`事务`的原理（这里讲到了方法，但是没有探究底层实现）
+- 

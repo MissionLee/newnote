@@ -19,18 +19,18 @@
 MyBatis 的配置文件包含了会深深影响 MyBatis 行为的设置（settings）和属性（properties）信息。文档的顶层结构如下：
 
 - configuration 配置
-  - [properties 属性](http://www.mybatis.org/mybatis-3/zh/configuration.html#properties)
-  - [settings 设置](http://www.mybatis.org/mybatis-3/zh/configuration.html#settings)
-  - [typeAliases 类型别名](http://www.mybatis.org/mybatis-3/zh/configuration.html#typeAliases)
-  - [typeHandlers 类型处理器](http://www.mybatis.org/mybatis-3/zh/configuration.html#typeHandlers)
-  - [objectFactory 对象工厂](http://www.mybatis.org/mybatis-3/zh/configuration.html#objectFactory)
-  - [plugins 插件](http://www.mybatis.org/mybatis-3/zh/configuration.html#plugins)
+  - [properties 属性](#properties)
+  - [settings 设置](#settings)
+  - [typeAliases 类型别名](#typeAliases)
+  - [typeHandlers 类型处理器](#typeHandlers)
+  - [objectFactory 对象工厂](#objectFactory)
+  - [plugins 插件](#plugins)
   - environments 环境
     - environment 环境变量
       - transactionManager 事务管理器
       - dataSource 数据源
-  - [databaseIdProvider 数据库厂商标识](http://www.mybatis.org/mybatis-3/zh/configuration.html#databaseIdProvider)
-  - [mappers 映射器](http://www.mybatis.org/mybatis-3/zh/configuration.html#mappers)
+  - [databaseIdProvider 数据库厂商标识](#databaseIdProvider)
+  - [mappers 映射器](#mappers)
 
 
 
