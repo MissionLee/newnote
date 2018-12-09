@@ -6,7 +6,7 @@
 
 ## Redis操作工具
 
-- Jedis 完整便捷的公爵
+- Jedis 完整便捷的工具
 - Redisson 更多分布式的容器实现（未确认）
 
 ## 使用Jedis客户端
