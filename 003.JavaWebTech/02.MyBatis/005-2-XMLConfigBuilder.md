@@ -4,6 +4,13 @@
 
 通常情况下，我们只提供配置文件的路径，也就是调用只有一个参数的
 
+- 基础类：BaseBuilder
+  - BaseBuilder主要通过其中三个类成员对外提供服务，这三个成员均是 protected final 声明，也就是只有子类可以使用
+  - Configuration
+    - MyBatis内的一个存放配置的核心类
+  - TypeAliasRegistry
+  - TypeHandlerRedistry
+
 
 ```java
 /**
