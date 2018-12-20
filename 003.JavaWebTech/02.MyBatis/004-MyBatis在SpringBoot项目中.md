@@ -1,21 +1,18 @@
 # MyBatis 
 
-- 首先是[单独的MyBatis获取SqlSession的过程](./res/003.MyBatis初始化过程与配置文件结构.md)
-
-- 对应这个过程，我们在SpringBoot中需要配置那些东西？
-  - 
-
-实际上我们有两个可用来梳理 MyBatis的入手点： 从SqlSession开始，或者从 Mapper.xml文件开始。
+想要真正了解MyBatis，实际上我们有两个可用来梳理 MyBatis的入手点： 从SqlSession开始，或者从 Mapper.xml文件开始。
 
 当然我在几秒钟前有一个误区，因为一直在Spring（SpringBoot）框架中使用Mybatis，一直直接获取 SqlSession
 ```java
 	@Resource
 	protected SqlSession sqlSession;
 ```
+这是因为`MyBatisSpringBootStarter`已经自动帮我们配置好了（我们用了SpringBoot固定的方法写配置参数，框架靠这些参数自动配置好了一切）
+
 既然这样，还是看一下 SpringBoot里面的MyBatis配置
-```conf
+```bash
 # 首先是关于 db的
-spring.datasource.url=jdbc:mysql://ip:3306/db_base_platform_two?characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull&useSSL=true
+spring.datasource.url=jdbc:mysql://ip:3306/db_name?characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull&useSSL=true
 spring.datasource.username=
 spring.datasource.password=
 spring.datasource.auto-commit=false
@@ -30,7 +27,6 @@ spring.datasource.validation-query=select 1
 spring.datasource.test-while-idle=true
 spring.datasource.test-on-borrow=true
 spring.datasource.test-on-connect=true
-## 然后是关于Mybatis的
 #####MYBATIS
 mybatis.config-location=classpath:/mybatis/SqlMapConfig.xml  ## 这是MyBatis的配置
 mybatis.mapper-locations=classpath:/mybatis/mapper/**/*.xml  ## 这是MyBatis的Mapper文件
@@ -52,6 +48,8 @@ pagehelper.params=count=countSql
 
 
 - 关于MyBatis的 [配置文件](./000-MyBatis学习导航.md) ，之前有过记录了，不再多说
+
+## 自己尝试配置过一次，更有助于对源码的理解与学习
 
 - SpringBoot 会自动为我们配置好MyBatis，即使我们不写任何配置文件，但是配置文件，非常有利于对于MyBatis的理解
 

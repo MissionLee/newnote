@@ -58,7 +58,7 @@ classForName-->|创建后传递给BaseBuilder的Configuration|BaseBuilder
 Configuration-->最终存储了所有MyBatis的配置参数和Mapper信息
 ```
 ------------------------------
-## SqlSession / DataSource 
+## SqlSession 的获取
 
 > 在配置文件处理阶段，已经通过SqlSessionFactoryBuilder获得了Configuration，并且最终创建了 SqlSessionFactory（默认是DefaultSqlSessionFactory），之后就可以用之获取SqlSession（默认DefaultSqlSession）
 
@@ -81,13 +81,23 @@ Configuration-->最终存储了所有MyBatis的配置参数和Mapper信息
   - return new DefaultSqlSession(configuration, executor, autoCommit);
     - ⭐最终返回SqlSession
       - SqlSession实际上就是从mappedStatement中找到当前要用的Statement，然后调用 Executor 处理SQL语句与数据库进行交互
-  - 数据处理层 ：动态SQL/数据映射
-    - [LangDriver](\006-LangDriver.md)
-      - MyBatis 从 3.2 开始支持可插拔脚本语言，这允许你插入一种脚本语言驱动，并基于这种语言来编写动态 SQL 查询语句。  
-  - 应用层/接口层 ： 对外提供的接口
-```mermaid
-graph TD;
-SqlSessionFactory-->SqlSession
-```
+## Executor ParameterHandler ResultHandler
+- [executor](./source/005-10-Executor.md)
+  - 真正执行sql的类
+    - 调度 StatmentHandler 每个步骤的执行
+    - 这部分源码使用代理模式，非常值得学习
+- [ParameterHandler](./source/005-12-ParameterHandler.md)
+  - 用于从参数中找到我们在mapper里面写的SQL的对应参数的value
+- TypeHandler
+  - 当ParameterHandler找到某个参数需要放入某个值的时候，我们获取对应的TypeHandler，然后把转换好的参数放到 PreparedStatement 对应的位置
+    - 例如我们要设置一个int值，就使用IntegerTypeHandler
+    - IntegerTypeHandler里面会调用 ps.setInt()方法
+    - 这里也是代理模式
+
+## 其他
+
+- [LangDriver](\006-LangDriver.md)
+    - MyBatis 从 3.2 开始支持可插拔脚本语言，这允许你插入一种脚本语言驱动，并基于这种语言来编写动态 SQL 查询语句。  
+
 
 > 另外有：关于 [Spring中SqlSessionTemplate](..\01.SpringSeries\SpringDataSQL\001-SqlSessionTemplate.md) 的学习,主要可以学习其代理模式，和通过代理模式实现的事务管理
