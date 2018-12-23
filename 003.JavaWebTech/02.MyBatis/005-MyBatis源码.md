@@ -11,7 +11,7 @@
 
 > 2.解析Mapper文件 (解析出来的内容也在Configuration中)获得 SqlSource / BoundSql 
 
-- 引导层+基础层 ：配置文件解析 / 连接池 / 事务 / 缓存
+- ConfigBuilder  和 MapperBuilder
   - SqlSessionFactoryBuilder
     - 让用户可以用多种方法获得SqlSessionFactory
       - 直接提供Configuration
@@ -34,6 +34,9 @@
     - (默认)使用这个langDriver处理我们写的sql语句（我们一般都是按照MyBatis的标准要求写的）
     - 最终生成SqlSource
     - 使用 GenericTokenParser 对 `${} 和 #{}` 这种参数进行处理 ⭐此部分已经涉及了动态SQL
+  - 附加小知识点
+    - [genericTokenParser](./source/GenericTokenParser)
+      - 就是用来解析 ${} #{} 标记的
 ```MERMAID
 graph TD;
 SqlSession-->|从工厂获得|SqlSessionFactory
@@ -66,7 +69,8 @@ Configuration-->最终存储了所有MyBatis的配置参数和Mapper信息
   - final Environment environment = configuration.getEnvironment();
     - ⭐从配置文件获取 Environment
       - 主要存储了：ID / TrancactionFactory / DataSource （就是配置文件中Environment节点的内容）
-  - final TransactionFactory transactionFactory = getTransactionFactoryFromEnvironment(environment);
+  - final TransactionFactory transactionFactory 
+    - = getTransactionFactoryFromEnvironment(environment);
     - ⭐获取Environment中的TransactionFactory
     - [TransactionFactory&Transaction](\source\005-9-TransactionFactory-Transaction.md)
   - tx = transactionFactory.newTransaction(environment.getDataSource(), level, autoCommit);
@@ -95,6 +99,7 @@ Configuration-->最终存储了所有MyBatis的配置参数和Mapper信息
     - 这里也是代理模式
 
 ## 其他
+
 
 - [LangDriver](\006-LangDriver.md)
     - MyBatis 从 3.2 开始支持可插拔脚本语言，这允许你插入一种脚本语言驱动，并基于这种语言来编写动态 SQL 查询语句。  

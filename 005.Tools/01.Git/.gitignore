@@ -1,0 +1,81 @@
+# 语法： 
+# 以”#”号开头表示注释； 
+# 以斜杠“/”开头表示目录； 
+# 以星号“*”通配多个字符； 
+# 以问号“?”通配单个字符 
+# 以方括号“[]”包含单个字符的匹配列表； 
+# 以叹号“!”表示不忽略(跟踪)匹配到的文件或目录；
+#
+
+# 示例
+# 忽略 根目录中 某个文件夹
+/examplefile/
+# 忽略任何某个目录下文件夹里面的内容
+examplefile/
+# 忽略某个后缀名的文件
+*.depend
+# 忽略某个具体文件：写全名
+
+############################################
+# VSCode -------- START ---------------
+.code
+
+# IDEA  -------- START ⭐⭐ ------------
+## IDEA - JAVA
+## 本地运行编译文件
+/target/ 
+target/
+## IDEA BASIC
+# .ipr 文件配置项目的核心配置， .iws个人空间配置 .iml 项目内组件：源码，脚本，单元测试，文档等
+*.iml
+*.iws
+*.ipr
+
+# STS spring tool suit
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### NetBeans ###
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# ECLIPSE JAVA -START 🔺
+.project
+
+# NORMAL -------- START --------------
+*.log
+*.temp
+/TODO
+/TODO/
+
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
