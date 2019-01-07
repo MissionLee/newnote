@@ -23,6 +23,7 @@ examplefile/
 # IDEA  -------- START ⭐⭐ ------------
 ## IDEA - JAVA
 ## 本地运行编译文件
+.idea/
 /target/ 
 target/
 ## IDEA BASIC

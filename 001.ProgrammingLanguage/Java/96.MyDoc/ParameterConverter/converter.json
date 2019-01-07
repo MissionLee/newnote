@@ -1,0 +1,67 @@
+{
+    "executorTypeAlians": {
+        "universal": {
+            "currentUser": "com.xxx.CurrentUser",
+            "pageInfo": "com.xxx.PageInfo",
+            "prehandle": "com.xxx.prehandler",
+            "HttpServletRequestParameterPreHandleExecutor": ""
+        },
+        "targeted": {
+            "kg2k": "com.xx.Kg2k",
+            "timestamp2datetime": "com.xxx.DateTime",
+            "yuan2fen": "com.xxx.Yuan2Fen",
+            "status": "com.xxx.StatusExecutor"
+        },
+        "tip": "type alians for executor"
+    },
+    "namedExecutorsConfiguration": {
+        "sample": {
+            "universal": [
+                "put TypeAlians of universalExecutor here,and than it will be added to a Executor named"
+            ],
+            "targeted": {
+                "sampleTargetedExecutor": [
+                    "key1",
+                    "key2"
+                ],
+                "tip": "targeted executor - sampleTargetedExecutor will be use to deal with key1 and key2 when you use the namedExecutor - sample",
+                "tip2": "sample will be automatically ignored bu configuration builder,that means you can not naming an executor with sample "
+            },
+            "settings": {
+                "executorType": "set the executor you want, if do not . DefaultMappedExecutor will be Used"
+            }
+        },
+        "default": {
+            "targeted": {
+                "status": [
+                    "status"
+                ]
+            },
+            "settings": {
+                "executorType": "",
+                "converterInputHandler": ""
+            },
+            "tip": "defaultConfiguration will be added to all the other namedExecutorConfiguration. Please handle with care"
+        },
+        "public": {
+            "universal": [
+                "HttpServletRequestParameterPreHandleExecutor"
+            ]
+        },
+        "auctions": {
+            "universal": [
+                "pageInfo"
+            ],
+            "targeted": {
+                "kg2k": [
+                    "weight",
+                    "totalWeight"
+                ],
+                "timeTargeted": [
+                    "startTime",
+                    "endTime"
+                ]
+            }
+        }
+    }
+}
