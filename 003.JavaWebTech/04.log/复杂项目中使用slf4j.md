@@ -1,5 +1,24 @@
 # Hello SLF4J
 
+> MissionLee 我的总结 slf4j+log4j2
+- 配置slf4j + log4j2 正确的步骤
+  - pom里面如果当前由log4j 1.x相关的内容 那么删除掉
+  - pom里面如果由 slf4j-log4j12 那么删除掉
+  - 引入log4j2的核心jar包
+    - log4j-api 2.x版本
+    - log4j-core 2.x版本
+  - 引入slf4j的核心jar包
+    - slf4j-api
+  - slf4j 取代 spring core 引入的 common-logging
+    - 引入： log4j-jcl
+  - slf4j 链接 log4j2
+    - 引入：log4j-slf4j-impl
+    - 注意：这个和上面提到的要删除掉slf4j-log4j12的区别
+  - （这应该是个过期配置）如果需要log4j的web支持，那么可以引入
+    - log4j-web
+  - 使用异步日志还需引入：com.lmax.disruptor
+
+
 一、Java日志体系概述
 
 
