@@ -45,4 +45,34 @@ spring bean：bean的定义，解析，创建
 
 spring core
   - 资源resource
-  - 
+  - 容器IoC Container
+  - 数据与数据绑定验证等
+  - SpEL
+  - 其他基础内容
+
+spring context： 
+  - Application Context
+  - 运行环境
+
+看一下 ApplicationContext
+```java
+public interface ApplicationContext extends EnvironmentCapable, ListableBeanFactory, HierarchicalBeanFactory,
+		MessageSource, ApplicationEventPublisher, ResourcePatternResolver 
+```
+- EnvironmentCapable 
+  - 可以提供 org.springframework.core.env.Environment
+- ListableBeanFactory
+  - 可以列举 enumerate所有bean的BeanFactory接口
+- HierarchicalBeanFactory
+  - 支持容器层级（父容器）
+- MessageSource
+  - org.springframework.context.MessageSource
+  - 国际化资源 
+- ApplicationEventpublisher
+  - 把时间发布功能封在这里，特地给ApplicationEvent服务的
+- ResourcepatternResolver
+  - 资源路径字符串解析器
+
+> 此处举个例子 SpringMVC中核心组件DispatcherServlet 有一个重要组件 WebApplicationContext
+
+> WebApplicationContext就是ApplicationContext的实现（例如：XmlWebApplicationContext，StaticWebApplicationContext）
