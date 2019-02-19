@@ -75,4 +75,4 @@ public interface ApplicationContext extends EnvironmentCapable, ListableBeanFact
 
 > 此处举个例子 SpringMVC中核心组件DispatcherServlet 有一个重要组件 WebApplicationContext
 
-> WebApplicationContext就是ApplicationContext的实现（例如：XmlWebApplicationContext，StaticWebApplicationContext）
+> WebApplicationContext就是ApplicationContext的实现（例如：XmlWebApplicationContext，StaticWebApplication）
