@@ -1,10 +1,28 @@
 # 概念
 
-Spring Core / Spring 核心组件
+- 官方网站中描述的SpringCore包括以下几个部分（这里对的core不是指core包，而是通用的核心概念）
+  - IoC Container
+    - [IoC Container章节](./官网资料/01-The_IoC_Container.md)介绍，容器的核心为 beans 和 context 两个包
+      - BeanFactory
+      - ApplicationContext
 
-Spring Core 是Spring框架下最基础（核心）的一个jar包。
+## Spring Core / Spring 核心组件
 
-Spring 核心组件 则是说（jar包） Spring Core / Spring Bean / Spring Context
+- 许多网上查询到的总结文章常说：Spring 核心组件  Spring Core / Spring Bean / Spring Context
+- Spring官网上的SpringCore则介绍了9个大类
+  - IoC Container
+  - Resource
+  - Validation/DataBinding/TypeConversion
+  - SpEL
+  - Aspect Oriented Programming with Spring
+  - Spring AOP APIs
+  - Null safety
+  - Appendix
+> 在官网的介绍中 IoC Container就是 Spring Bean 和 Spring Context两个包；而剩下的几个部分一些集成在 core这个包里面，另外还有例如 spring-aop spring-aspects spring-expression 这些并非在core内
+
+> 所以如果我们以Spring官网提供的内容为标准，狭义上，网上部分文章的说法则有一些疏漏。
+
+## 从高阶组件，分辨核心内容
 
 有一个很简单的辨析方法：
 
@@ -72,6 +90,8 @@ public interface ApplicationContext extends EnvironmentCapable, ListableBeanFact
   - 把时间发布功能封在这里，特地给ApplicationEvent服务的
 - ResourcepatternResolver
   - 资源路径字符串解析器
+
+> 其他Spring官网认为是core的部分，实际上不是所有的Spring模块都依赖，这可能是部分开发者没有把他们当成核心组件的原因
 
 > 此处举个例子 SpringMVC中核心组件DispatcherServlet 有一个重要组件 WebApplicationContext
 
