@@ -43,5 +43,3 @@ HttpCliendDownloader-->|核心成员|HttpUriRequestConverter
 
 访问工作的执行者是[HttpClient]
 
-
-https://blog.csdn.net/yi_master/article/details/79358920
