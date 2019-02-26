@@ -3,6 +3,8 @@
 ## 第一步 需要准备chrome driver 和 selenium
 
 ```xml
+<!-- 已经确认在webmagic 现有版本下，下面的seleniumhq版本比较高，比使用与 现有的WebDriverPool里面的代码，有些方法现在不存在了，用  2.41.0 版本没有问题 -->
+
  <dependency>
   <groupId>org.seleniumhq.selenium</groupId>
    <artifactId>selenium-java</artifactId>
