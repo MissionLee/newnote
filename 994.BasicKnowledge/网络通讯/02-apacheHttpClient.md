@@ -328,6 +328,7 @@ CloseableHttpClient httpclient = HttpClients.custom()
 ```
 
 同时我们可以使用StandardHttpRequestRetryHandler替代默认的HttpRequestRetryHandler，以便将那些被RFC-2616定义为幂等的请求方法视为安全自动重试：GET，HEAD，PUT，DELETE，OPTIONS和TRACE
+
 --------------------- 
 作者：yi_master 
 来源：CSDN 
