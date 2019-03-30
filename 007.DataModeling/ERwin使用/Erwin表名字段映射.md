@@ -14,3 +14,14 @@
   - A列使用函数 `=LEN(B1)*-1` 取出,B列汉字内容的长度
   - 使用排序,主排序`A列数值降序`,辅排序`B列数值降序`(实际上是按照汉语拼音首字母)
   - 排序好了之后把`D列内容`复制到上个大步骤的两个`txt文件里面`
+
+## 更新 表明和字段名分开太麻烦了
+
+约定：表明和字段名不可重复，然后把两个 name mapping 使用同一个脚本
+
+
+```script
+%Decl(test,_)%=(test,%Lookup(%substitute(%currentfile,.erwin,_mapping.txt),%EntityName))%If(%==(%Substr(%:test,1,1),_)){%Substr(%:test,2)}%else{%:test}
+```
+
+%Decl(test,_)%=(test,%Lookup(%substitute(%currentfile,.erwin,_mapping.txt),%AttName))%If(%==(%Substr(%:test,1,1),_)){%Substr(%:test,2)}%else{%:test}

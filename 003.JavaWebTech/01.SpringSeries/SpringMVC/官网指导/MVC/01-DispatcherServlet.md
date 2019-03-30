@@ -246,3 +246,163 @@ public class MyWebApplicationInitializer implements WebApplicationInitializer {
 
 WebApplicationInitializer
 
+## Servlet Config
+
+在 Servlet 3.0+ 版本，可以通过代码或者 web.xml配置 Servlet Container
+
+```java
+import org.springframework.web.WebApplicationInitializer;
+
+public class MyWebApplicationInitializer implements WebApplicationInitializer {
+
+    @Override
+    public void onStartup(ServletContext container) {
+        XmlWebApplicationContext appContext = new XmlWebApplicationContext();
+        appContext.setConfigLocation("/WEB-INF/spring/dispatcher-config.xml");
+
+        ServletRegistration.Dynamic registration = container.addServlet("dispatcher", new DispatcherServlet(appContext));
+        registration.setLoadOnStartup(1);
+        registration.addMapping("/");
+    }
+}
+```
+
+WebApplicationInitializer是 Spring MVC提供的接口，保证实现类可以被识别并且被自动用于配置Servlet 3 容器。
+
+Spring还提供了 AbstractDispatcherServletInitializer来简化配置DispatcherServlet的代码（）
+
+> 如果使用注解形式，那么可以使用 AbstractAnnotationConfigDispatcherServletInitializer
+
+> 如果xml配置可以在代码里面载入
+
+![](./res/001.png)
+
+下面是两种形的代码
+
+```java
+public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+
+    @Override
+    protected Class<?>[] getRootConfigClasses() {
+        return null;
+    }
+
+    @Override
+    protected Class<?>[] getServletConfigClasses() {
+        return new Class<?>[] { MyWebConfig.class };
+    }
+
+    @Override
+    protected String[] getServletMappings() {
+        return new String[] { "/" };
+    }
+}
+```
+
+```java
+public class MyWebAppInitializer extends AbstractDispatcherServletInitializer {
+
+    @Override
+    protected WebApplicationContext createRootApplicationContext() {
+        return null;
+    }
+
+    @Override
+    protected WebApplicationContext createServletApplicationContext() {
+        XmlWebApplicationContext cxt = new XmlWebApplicationContext();
+        cxt.setConfigLocation("/WEB-INF/spring/dispatcher-config.xml");
+        return cxt;
+    }
+
+    @Override
+    protected String[] getServletMappings() {
+        return new String[] { "/" };
+    }
+}
+```
+
+> ⭐⭐ ServletFileter也可以配置，看看代码结构就明白了
+
+![](./res/002.png)
+
+## Processing ⭐⭐⭐
+
+> DispatcherServlet 处理请求的运行过程如下
+
+- WebApplicationContext被绑定为 request的一个属性，controller或者其他元素在执行过程中可以使用它，默认以 DispatcherServlet.WEB_APPLICATION_CONTEXT_ATTRIBUT 为KEY
+```java
+// WebApplicationContext 可以直接从静态方法获取
+WebApplicationContext context=ContextLoader.getCurrentWebApplicationContext();
+// 可以借助 requet 获取  
+ServletContext servletContext=request.getSession().getServletContext();
+// 容ROOT 关键字获取ROOT 用 DispatcherServlet的关键字也可以获取对应的
+WebApplicationContext webApplicationContext = (WebApplicationContext)servletContext.getAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE);
+
+```
+
+- The locale resolver is bound to the request to let elements in the process resolve the locale to use when processing the request (rendering the view, preparing data, and so on). If you do not need locale resolving, you do not need the locale resolver
+- The theme resolver is bound to the request to let elements such as views determine which theme to use. If you do not use themes, you can ignore it.
+- If you specify a multipart file resolver, the request is inspected for multiparts. If multiparts are found, the request is wrapped in a MultipartHttpServletRequest for further processing by other elements in the process. See Multipart Resolver for further information about multipart handling.
+- 搜索请求对应的handler，如果找到了，执行链执行（preprocessors，postprocessors，controllers），从而准备模型或者呈现， 或者如果是注解controller，可以呈现相应而不返回view
+- 如果返回模型，则呈现视图。 如果没有返回模型（可能是由于预处理器或后处理器拦截请求，可能是出于安全原因），则不会呈现任何视图，因为该请求可能已经完成。
+
+> HandlerExceptionResolver 这个bean在 用于处理 request处理过程中的异常，这些异常解析器允许自定义逻辑以解决异常。
+
+> Spring DispatcherServlet还支持返回最后修改日期，如Servlet API所指定。 确定特定请求的最后修改日期的过程很简单：DispatcherServlet查找适当的处理程序映射并测试找到的处理程序是否实现LastModified接口。 如果是这样，LastModified接口的long getLastModified（request）方法的值将返回给客户端。
+
+您可以通过将Servlet初始化参数（init-param元素）添加到web.xml文件中的Servlet声明来自定义各个DispatcherServlet实例。 下表列出了支持的参数：
+
+- contextClass / 一个实现了 ConfigurableWebApplicationContext的类
+
+Class that implements ConfigurableWebApplicationContext, to be instantiated and locally configured by this Servlet. By default, XmlWebApplicationContext is used.
+
+- contextConfigLocation / 
+
+传递给上下文实例（由contextClass指定）的字符串，用于指示可以在何处找到上下文。 该字符串可能包含多个字符串（使用逗号作为分隔符）以支持多个上下文。 对于具有两次定义的bean的多个上下文位置，最新位置优先
+String that is passed to the context instance (specified by contextClass) to indicate where contexts can be found. The string consists potentially of multiple strings (using a comma as a delimiter) to support multiple contexts. In the case of multiple context locations with beans that are defined twice, the latest location takes precedence.
+
+- namespace
+
+Namespace of the WebApplicationContext. Defaults to [servlet-name]-servlet.
+
+- throwExceptionIfNoHandlerFound / 当没有对应的handler的时候抛出一个错误，这个错误可以被我们配置的 ExceptionHandler捕捉到
+
+Whether to throw a NoHandlerFoundException when no handler was found for a request. The exception can then be caught with a HandlerExceptionResolver (for example, by using an @ExceptionHandler controller method) and handled as any others. 
+By default, this is set to false, in which case the DispatcherServlet sets the response status to 404 (NOT_FOUND) without raising an exception. 
+Note that, if default servlet handling is also configured, unresolved requests are always forwarded to the default servlet and a 404 is never raised.
+
+## Interception
+
+所有 HandlerMapping 实现 都支持 handler 拦截器
+
+拦截器实现： HandlerInterceptor
+
+- preHandle(..): Before the actual handler is executed
+- postHandle(..): After the handler is executed
+- afterCompletion(..): After the complete request has finished
+
+> 注意： postHandler 在使用@ResponseBody and ResponseEntity 方法（response在 HandlerAdaptor中被written / commited），这发生在postHandle 之前。 这意味着想要使用 posthandler来改变response太晚了。这种场景下，你可以实现 ResponseBodyAdvice 或者 声明为 Controller Advice 或者直接配置到 RequestMappingHandlerAdaptor
+
+## Exceptions
+
+请求处理过程中报错，DispatcherServlet会调用一个由 handlerExceptionResolver 组成的调用链来解决错误
+
+可用的 HandlerExceptionResolver 有这些实例
+
+- SimpleMappingExceptionResolver
+
+错误和error view name 映射
+A mapping between exception class names and error view names. Useful for rendering error pages in a browser application.
+
+- DefaultHandlerExceptionResolver
+
+默认处理器，标准HTTP错误代码
+Resolves exceptions raised by Spring MVC and maps them to HTTP status codes. See also alternative ResponseEntityExceptionHandler and REST API exceptions.
+
+- ResponseStatusExceptionResolver
+
+
+Resolves exceptions with the @ResponseStatus annotation and maps them to HTTP status codes based on the value in the annotation.
+
+- ExceptionHandlerExceptionResolver
+Resolves exceptions by invoking an @ExceptionHandler method in a @Controller or a @ControllerAdvice class. See @ExceptionHandler methods.
