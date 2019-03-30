@@ -217,4 +217,31 @@ org.springframework.web.servlet.ViewResolver=org.springframework.web.servlet.vie
 
 org.springframework.web.servlet.FlashMapManager=org.springframework.web.servlet.support.SessionFlashMapManager
 ```
+## Servlet Config
 
+⭐ 直接看这里可能不明白原理，我整理了另一篇文章
+- 003.JavaWebTech\01.SpringSeries\SpringMVC\WebApplicationInitializer.md
+
+
+
+
+在 Servlet 3.0+ 版本中，可以使用代码来配置 Servlet container （在这之前我们需要使用 web.xml）
+
+```java
+import org.springframework.web.WebApplicationInitializer;
+
+public class MyWebApplicationInitializer implements WebApplicationInitializer {
+
+    @Override
+    public void onStartup(ServletContext container) {
+        XmlWebApplicationContext appContext = new XmlWebApplicationContext();
+        appContext.setConfigLocation("/WEB-INF/spring/dispatcher-config.xml");
+
+        ServletRegistration.Dynamic registration = container.addServlet("dispatcher", new DispatcherServlet(appContext));
+        registration.setLoadOnStartup(1);
+        registration.addMapping("/");
+    }
+}
+```
+
+WebApplicationInitializer
