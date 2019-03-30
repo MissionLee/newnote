@@ -406,3 +406,84 @@ Resolves exceptions with the @ResponseStatus annotation and maps them to HTTP st
 
 - ExceptionHandlerExceptionResolver
 Resolves exceptions by invoking an @ExceptionHandler method in a @Controller or a @ControllerAdvice class. See @ExceptionHandler methods.
+
+> Chain of Resolvers 处理器执行链
+
+通过声明多个HandlerExceptionResolver，可以组成一个错误处理链，声明的时候可以指定 order，调用的时候会按照 order 从小到大的顺序执行
+
+The contract of HandlerExceptionResolver specifies that it can return:
+
+- a ModelAndView that points to an error view.
+
+- An empty ModelAndView if the exception was handled within the resolver.
+
+- null if the exception remains unresolved, for subsequent resolvers to try, and, if the exception remains at the end, it is allowed to bubble up to the Servlet container.
+
+MVC Config自动声明内置的解析器，用于默认的Spring MVC异常，@ ResponseStatus注释异常，以及对@ExceptionHandler方法的支持。 您可以自定义该列表或替换它。
+
+> Container Error page
+
+如果错误没有被任何一个HandlerExceptionResovler处理，这种情况就要返回 一个错误状态 4xx，5xx
+
+Servlet container可以配置一个 默认的错误HTML。通过在 web.xml里面配置
+```xml
+<error-page>
+    <location>/error</location>
+</error-page>
+```
+
+```java
+@RestController
+public class ErrorController {
+
+    @RequestMapping(path = "/error")
+    public Map<String, Object> handle(HttpServletRequest request) {
+        Map<String, Object> map = new HashMap<String, Object>();
+        map.put("status", request.getAttribute("javax.servlet.error.status_code"));
+        map.put("reason", request.getAttribute("javax.servlet.error.message"));
+        return map;
+    }
+}
+```
+
+## View 章节此处不总结
+
+## Local
+
+## Themes
+
+## Multipar Resovler
+
+MultipartResovler 用于处理带有文件上传的请求。有一个基于 Commons FileUpload的实现（Servlet 3.0+）
+
+- 在DispatcherServlet里面声明一个 MultipartResovler
+- DispatcherServlet发现这个bean，会把它配置到request里面
+- 当一个POST请求的content-type 为 multipart/form-data的时候，resovler会解析内容，然后讲 HttpServletRequest 包装成MultipartHttpServletRequst
+
+> Apache Commons FileUpload
+
+要使用这个组件，需要配置一个类型为 CommonsMultipartResolver的bean，我们可以命名为 multipartResolver（别忘了添加dependency）
+
+> Servlet 3.0
+
+multipart parsing不是默认的，需要我们配置一下
+- 在java代码里面： set a MultipartConfigElement on the Servlet registration.
+- 在 web.xml里面：add a "<multipart-config>" section to the servlet declaration.
+
+java代码配置的例子
+```java
+public class AppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+
+    // ...
+
+    @Override
+    protected void customizeRegistration(ServletRegistration.Dynamic registration) {
+
+        // Optionally also set maxFileSize, maxRequestSize, fileSizeThreshold
+        registration.setMultipartConfig(new MultipartConfigElement("/tmp"));
+    }
+
+}
+```
+
+## Logging
