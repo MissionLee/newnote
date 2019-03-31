@@ -2,6 +2,119 @@
 
 @RequestMapping handler 有一大堆可选的入参与返回值
 
+⭐⭐  总结写在最上面
+
+- 可选入参
+  - WebRequest, NativeWebRequest
+    - 通用的Web请求之类的内容
+    - 没有被Servlet API 封装
+  - javax.servlet.ServletRequest, javax.servlet.ServletResponse
+    - ServletRequest/Response的某种具体实现
+    - Request类型的例子：
+      - ServletRequest / HttpServletRequest
+      - MultipartRequest
+      - MultipartHttpServletRequest
+  - javax.servlet.http.HttpSession
+    - session的增强， never null
+    - ⭐ HttpSession是线程不安全的
+      - 🔺 可以通过在 RequestMappingHandlerAdapter中配置 synchronizeOnSession
+  - javax.servlet.http.PushBuilder
+    - Servlet 4.0
+  - java.security.Principal
+    - 🔺 不太懂 🔺
+  - HttpMethod
+    - GET
+    - HEAD
+    - POST
+    - PUT
+    - DELETE
+    - CONNECT HTTP/1.1
+    - OPTIONS
+    - TRACE
+    - PATCH
+    - COPY
+    - LINK
+    - UNLINK
+    - WRAPPED
+    - Extension-mothed
+  - java.util.Locale
+    - 地理/政治/文化信息  语言环境敏感
+    - 由LocaleResolver 或 LocaleContextResolver 提供
+  - java.util.TimeZone + java.time.ZoneId
+    - 时区信息 LocaleContextResovler
+  - java.io.InputStream, java.io.Reader
+    - 获取请求主体部分
+  - java.io.OutputStream, java.io.Writer
+    - 响应主体部分
+  - @PathVariable
+    - 通过 URL patterns 获取对应的内容
+  - @MatrixVariable
+    - 矩阵变量
+  - @RequestParam
+    - Servlet request的 参数，包括 multipart files
+    - ⭐ 参数会被转换成声明的 类型
+  - @RequestHeader
+    - 请求头内容
+  - @CookieValue
+    - ⭐ Cookie值 也会被转换成声明的类型
+  - @RequestBody
+    - HTTP 请求body，通过HttpMessageConverter
+  - HttpEntity<B>
+    - HTTP 的  header + body
+  - @RequestPart
+    - 对应multipart/form-data 请求中的 一个部分
+    - 也是通过 HttpMessageConcerter转换
+  - java.util.Map, org.springframework.ui.Model, org.springframework.ui.ModelMap
+    - Model
+  - RedirectAttributes
+    - 重定向（hat is, to be appended to the query string） 和 flash 参数
+    - 下面有讲解
+  - @ModelAttribute
+  - Errors, BindingResult
+  - SessionStatus + class-level @SessionAttributes
+    - 用于标记表单处理完成，它触发通过类级别@SessionAttributes注释声明的会话属性的清除。 有关更多详细信息，请参阅@SessionAttributes。
+  - UriComponentsBuilder
+    - 一个封装好的当前请求的 host/ port /scheme/ context path / servlet mapping 相关信息
+  - @SessionAttribute
+    - session attribute
+  - @RequestAttribute
+    - request attribute
+  - Any other argument
+- 可返回内容
+  - @ResponseBody
+    - 通过HttpMessageConverter 把返回值转换后写入 ResponseBody
+  - HttpEntity<B>, ResponseEntity<B>
+    - 返回一个完整的 response
+    - 同样也由 HttpMessageConverter来转换
+  - HttpHeaders
+    - 返回一个header 没有body
+  - String
+    - view的名称
+  - View
+    - view
+  - java.util.Map, org.springframework.ui.Model
+    - 要放在model里面的参数 和 对应的model（也是RequestToViewNameTranslator.）
+  - @ModelAttribute
+    - model 里面的attribute，放到RequestToViewNameTranslator定制的model
+  - ModelAndView object
+    - The view and model attributes to use and, optionally, a response status.
+  - void
+    - 根据其他参数（入参/Controller是否是REST等等）的不同，有不同的情况
+  - DeferredResult<V>
+    - 🔺 异步返回 其他某个线程提供的内容
+  - Callable<V>
+    - 异步返回上面提到的所有内容
+  - ListenableFuture<V>, java.util.concurrent.CompletionStage<V>, java.util.concurrent.CompletableFuture<V>
+    - Alternative to DeferredResult, as a convenience (for example, when an underlying service returns one of those).
+  - StreamingResponseBody
+    - Emit a stream of objects asynchronously to be written to the response with HttpMessageConverter implementations. Also supported as the body of a ResponseEntity. See Asynchronous Requests and HTTP Streaming.
+  - Reactive types — Reactor, RxJava, or others through ReactiveAdapterRegistry
+    - Alternative to DeferredResult with multi-value streams (for example, Flux, Observable) collected to a List. 
+    - For streaming scenarios (for example, text/event-stream, application/json+stream), SseEmitter and ResponseBodyEmitter are used instead, where ServletOutputStream blocking I/O is performed on a Spring MVC-managed thread and back pressure is applied against the completion of each write. 
+See Asynchronous Requests and Reactive Types.
+  - Any other return value
+    - Any return value that does not match any of the earlier values in this table and that is a String or void is treated as a view name (default view name selection through RequestToViewNameTranslator applies), provided it is not a simple type, as determined by BeanUtils#isSimpleProperty. Values that are simple types remain unresolved.
+
 ## Method Arguments
 Same as in Spring WebFlux
 
@@ -462,31 +575,37 @@ public class EditPetForm {
 ```
 Storing the Pet value in the Servlet session.
 Clearing the Pet value from the Servlet session.
-@SessionAttribute
+
+> @SessionAttribute
+
 Same as in Spring WebFlux
 
 If you need access to pre-existing session attributes that are managed globally (that is, outside the controller — for example, by a filter) and may or may not be present, you can use the @SessionAttribute annotation on a method parameter, as the following example shows:
-
+```java
 @RequestMapping("/")
 public String handle(@SessionAttribute User user) { 
     // ...
 }
+```
 Using a @SessionAttribute annotation.
+
 For use cases that require adding or removing session attributes, consider injecting org.springframework.web.context.request.WebRequest or javax.servlet.http.HttpSession into the controller method.
 
 For temporary storage of model attributes in the session as part of a controller workflow, consider using @SessionAttributes as described in @SessionAttributes.
 
-@RequestAttribute
+> @RequestAttribute
 Same as in Spring WebFlux
 
 Similar to @SessionAttribute, you can use the @RequestAttribute annotations to access pre-existing request attributes created earlier (for example, by a Servlet Filter or HandlerInterceptor):
-
+```java
 @GetMapping("/")
 public String handle(@RequestAttribute Client client) { 
     // ...
 }
+```
 Using the @RequestAttribute annotation.
-Redirect Attributes
+
+> Redirect Attributes
 By default, all model attributes are considered to be exposed as URI template variables in the redirect URL. Of the remaining attributes, those that are primitive types or collections or arrays of primitive types are automatically appended as query parameters.
 
 Appending primitive type attributes as query parameters can be the desired result if a model instance was prepared specifically for the redirect. However, in annotated controllers, the model can contain additional attributes added for rendering purposes (for example, drop-down field values). To avoid the possibility of having such attributes appear in the URL, a @RequestMapping method can declare an argument of type RedirectAttributes and use it to specify the exact attributes to make available to RedirectView. If the method does redirect, the content of RedirectAttributes is used. Otherwise, the content of the model is used.
@@ -494,15 +613,17 @@ Appending primitive type attributes as query parameters can be the desired resul
 The RequestMappingHandlerAdapter provides a flag called ignoreDefaultModelOnRedirect, which you can use to indicate that the content of the default Model should never be used if a controller method redirects. Instead, the controller method should declare an attribute of type RedirectAttributes or, if it does not do so, no attributes should be passed on to RedirectView. Both the MVC namespace and the MVC Java configuration keep this flag set to false, to maintain backwards compatibility. However, for new applications, we recommend setting it to true.
 
 Note that URI template variables from the present request are automatically made available when expanding a redirect URL, and you don’t need to explicitly add them through Model or RedirectAttributes. The following example shows how to define a redirect:
-
+```java
 @PostMapping("/files/{path}")
 public String upload(...) {
     // ...
     return "redirect:files/{path}";
 }
+```
 Another way of passing data to the redirect target is by using flash attributes. Unlike other redirect attributes, flash attributes are saved in the HTTP session (and, hence, do not appear in the URL). See Flash Attributes for more information.
 
-Flash Attributes
+> Flash Attributes
+
 Flash attributes provide a way for one request to store attributes that are intended for use in another. This is most commonly needed when redirecting — for example, the Post-Redirect-Get pattern. Flash attributes are saved temporarily before the redirect (typically in the session) to be made available to the request after the redirect and are removed immediately.
 
 Spring MVC has two main abstractions in support of flash attributes. FlashMap is used to hold flash attributes, while FlashMapManager is used to store, retrieve, and manage FlashMap instances.
@@ -510,19 +631,19 @@ Spring MVC has two main abstractions in support of flash attributes. FlashMap is
 Flash attribute support is always “on” and does not need to enabled explicitly. However, if not used, it never causes HTTP session creation. On each request, there is an “input” FlashMap with attributes passed from a previous request (if any) and an “output” FlashMap with attributes to save for a subsequent request. Both FlashMap instances are accessible from anywhere in Spring MVC through static methods in RequestContextUtils.
 
 Annotated controllers typically do not need to work with FlashMap directly. Instead, a @RequestMapping method can accept an argument of type RedirectAttributes and use it to add flash attributes for a redirect scenario. Flash attributes added through RedirectAttributes are automatically propagated to the “output” FlashMap. Similarly, after the redirect, attributes from the “input” FlashMap are automatically added to the Model of the controller that serves the target URL.
-
+```note
 Matching requests to flash attributes
 The concept of flash attributes exists in many other web frameworks and has proven to sometimes be exposed to concurrency issues. This is because, by definition, flash attributes are to be stored until the next request. However the very “next” request may not be the intended recipient but another asynchronous request (for example, polling or resource requests), in which case the flash attributes are removed too early.
-
+```
 To reduce the possibility of such issues, RedirectView automatically “stamps” FlashMap instances with the path and query parameters of the target redirect URL. In turn, the default FlashMapManager matches that information to incoming requests when it looks up the “input” FlashMap.
 
 This does not entirely eliminate the possibility of a concurrency issue but reduces it greatly with information that is already available in the redirect URL. Therefore, we recommend that you use flash attributes mainly for redirect scenarios.
 
-Multipart
+> Multipart
 Same as in Spring WebFlux
 
 After a MultipartResolver has been enabled, the content of POST requests with multipart/form-data is parsed and accessible as regular request parameters. The following example accesses one regular form field and one uploaded file:
-
+```java
 @Controller
 public class FileUploadController {
 
@@ -538,13 +659,14 @@ public class FileUploadController {
         return "redirect:uploadFailure";
     }
 }
+```
 Declaring the argument type as a List<MultipartFile> allows for resolving multiple files for the same parameter name.
 
 When the @RequestParam annotation is declared as a Map<String, MultipartFile> or MultiValueMap<String, MultipartFile>, without a parameter name specified in the annotation, then the map is populated with the multipart files for each given parameter name.
 
 With Servlet 3.0 multipart parsing, you may also declare javax.servlet.http.Part instead of Spring’s MultipartFile, as a method argument or collection value type.
 You can also use multipart content as part of data binding to a command object. For example, the form field and file from the preceding example could be fields on a form object, as the following example shows:
-
+```java
 class MyForm {
 
     private String name;
@@ -567,8 +689,9 @@ public class FileUploadController {
         return "redirect:uploadFailure";
     }
 }
+```
 Multipart requests can also be submitted from non-browser clients in a RESTful service scenario. The following example shows a file with JSON:
-
+```http
 POST /someUrl
 Content-Type: multipart/mixed
 
@@ -585,56 +708,63 @@ Content-Disposition: form-data; name="file-data"; filename="file.properties"
 Content-Type: text/xml
 Content-Transfer-Encoding: 8bit
 ... File Data ...
+```
 You can access the "meta-data" part with @RequestParam as a String but you’ll probably want it deserialized from JSON (similar to @RequestBody). Use the @RequestPart annotation to access a multipart after converting it with an HttpMessageConverter:
-
+```java
 @PostMapping("/")
 public String handle(@RequestPart("meta-data") MetaData metadata,
         @RequestPart("file-data") MultipartFile file) {
     // ...
 }
+```
 You can use @RequestPart in combination with javax.validation.Valid or use Spring’s @Validated annotation, both of which cause Standard Bean Validation to be applied. By default, validation errors cause a MethodArgumentNotValidException, which is turned into a 400 (BAD_REQUEST) response. Alternatively, you can handle validation errors locally within the controller through an Errors or BindingResult argument, as the following example shows:
-
+```java
 @PostMapping("/")
 public String handle(@Valid @RequestPart("meta-data") MetaData metadata,
         BindingResult result) {
     // ...
 }
-@RequestBody
+```
+> @RequestBody
 Same as in Spring WebFlux
 
 You can use the @RequestBody annotation to have the request body read and deserialized into an Object through an HttpMessageConverter. The following example uses a @RequestBody argument:
-
+```java
 @PostMapping("/accounts")
 public void handle(@RequestBody Account account) {
     // ...
 }
+```
 You can use the Message Converters option of the MVC Config to configure or customize message conversion.
 
 You can use @RequestBody in combination with javax.validation.Valid or Spring’s @Validated annotation, both of which cause Standard Bean Validation to be applied. By default, validation errors cause a MethodArgumentNotValidException, which is turned into a 400 (BAD_REQUEST) response. Alternatively, you can handle validation errors locally within the controller through an Errors or BindingResult argument, as the following example shows:
-
+```java
 @PostMapping("/accounts")
 public void handle(@Valid @RequestBody Account account, BindingResult result) {
     // ...
 }
-HttpEntity
+```
+> HttpEntity
 Same as in Spring WebFlux
 
 HttpEntity is more or less identical to using @RequestBody but is based on a container object that exposes request headers and body. The following listing shows an example:
-
+```java
 @PostMapping("/accounts")
 public void handle(HttpEntity<Account> entity) {
     // ...
 }
-@ResponseBody
+```
+> @ResponseBody
 Same as in Spring WebFlux
 
 You can use the @ResponseBody annotation on a method to have the return serialized to the response body through an HttpMessageConverter. The following listing shows an example:
-
+```java
 @GetMapping("/accounts/{id}")
 @ResponseBody
 public Account handle() {
     // ...
 }
+```
 @ResponseBody is also supported at the class level, in which case it is inherited by all controller methods. This is the effect of @RestController, which is nothing more than a meta-annotation marked with @Controller and @ResponseBody.
 
 You can use @ResponseBody with reactive types. See Asynchronous Requests and Reactive Types for more details.
@@ -647,23 +777,25 @@ ResponseEntity
 Same as in Spring WebFlux
 
 ResponseEntity is like @ResponseBody but with status and headers. For example:
-
+```java
 @GetMapping("/something")
 public ResponseEntity<String> handle() {
     String body = ... ;
     String etag = ... ;
     return ResponseEntity.ok().eTag(etag).build(body);
 }
+```
 Spring MVC supports using a single value reactive type to produce the ResponseEntity asynchronously, and/or single and multi-value reactive types for the body.
 
-Jackson JSON
+> Jackson JSON
+
 Spring offers support for the Jackson JSON library.
 
-JSON Views
+> JSON Views
 Same as in Spring WebFlux
 
 Spring MVC provides built-in support for Jackson’s Serialization Views, which allow rendering only a subset of all fields in an Object. To use it with @ResponseBody or ResponseEntity controller methods, you can use Jackson’s @JsonView annotation to activate a serialization view class, as the following example shows:
-
+```java
 @RestController
 public class UserController {
 
@@ -673,7 +805,6 @@ public class UserController {
         return new User("eric", "7!jd#h23");
     }
 }
-
 public class User {
 
     public interface WithoutPasswordView {};
@@ -700,9 +831,10 @@ public class User {
         return this.password;
     }
 }
+```
 @JsonView allows an array of view classes, but you can specify only one per controller method. If you need to activate multiple views, you can use a composite interface.
 For controllers that rely on view resolution, you can add the serialization view class to the model, as the following example shows:
-
+```java
 @Controller
 public class UserController extends AbstractController {
 
@@ -713,3 +845,4 @@ public class UserController extends AbstractController {
         return "userView";
     }
 }
+```
