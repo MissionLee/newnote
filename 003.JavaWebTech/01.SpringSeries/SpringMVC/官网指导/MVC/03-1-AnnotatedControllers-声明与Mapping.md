@@ -259,7 +259,7 @@ Spring MVC also supports custom request-mapping attributes with custom request-m
 Same as in Spring WebFlux
 
 You can programmatically register handler methods, which you can use for dynamic registrations or for advanced cases, such as different instances of the same handler under different URLs. The following example registers a handler method:
-
+```java
 @Configuration
 public class MyConfig {
 
@@ -276,6 +276,7 @@ public class MyConfig {
     }
 
 }
+```
 Inject the target handler and the handler mapping for controllers.
 Prepare the request mapping meta data.
 Get the handler method.
