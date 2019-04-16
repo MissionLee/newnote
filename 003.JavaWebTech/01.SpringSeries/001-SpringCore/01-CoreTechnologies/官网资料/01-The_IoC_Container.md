@@ -1,6 +1,6 @@
 # Spring Core Technologies
 
-- 1. The IoC Container / Inversion Of Control 反转控制 = Dependency jnjection DI 
+-  The IoC Container / Inversion Of Control 反转控制 = Dependency jnjection DI 
 - 此章节包含Spring框架对IoC原理的实现，IoC也被称为DI。当对象仅仅通过1.构造参数，2.工厂方法参数，3.构造后或由工厂方法返回后通过属性设置，定义其依赖（其工作所需的其他对象）的时候。容器会在创建bean的时候注入这些依赖。与bean自己通过创建类控制依赖的实例，或者用一些诸如服务定位器之类的机制控制实例相比，这是一个完全相反的过程（因此成为反转控制-IoC）
   - 1.1. Introduction to the Spring IoC Container and Beans
     - IOC容器的基础包
