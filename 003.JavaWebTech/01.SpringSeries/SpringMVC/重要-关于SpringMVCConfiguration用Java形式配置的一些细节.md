@@ -12,7 +12,8 @@ https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#boot-featu
     - ⭐ 可以配置方案一中配置的内容，同时可以配置很多进阶内容（例如配置HandlerMapping相关的东西，但是不建议这么做）
 - 一些要注意的问题
   - 使用方案一的时候，是可以同时存在多个配置类 implements WebMvcConfigurer的，他们都会被执行
-  - 一 二同时存在的时候，第二种配置不会生效，这也是为什么
+  - 一 二同时存在的时候，第二种配置不会生效*（当系统中没有开发者自己配置的配置类的时候，系统会忽略自动配置类）
+    - 自动配置类的启用条件是 @ConditionalOnMissingBean
 
 最初项目里有一个
 
