@@ -93,9 +93,183 @@
         return unsafe.compareAndSwapObject(this, valueOffset, expect, update);
     }
 ```
-可以看到，其通过unsafe.compareAndSwapXxx 进行底层操作
+可以看到，其通过unsafe.compareAndSwapXxx 进行底层操作 [下面的内容来自这个传送门](https://www.cnblogs.com/hqlong/p/6586721.html)
 
 关于 Unsafe中的CAS操作（CompareAndSwapXXX)
-```java
 
+- Atomic 从JDK5开始, java.util.concurrent包里提供了很多面向并发编程的类. 使用这些类在多核CPU的机器上会有比较好的性能.
+主要原因是这些类里面大多使用(失败-重试方式的)乐观锁而不是synchronized方式的悲观锁.
+```java
+// 以下面的内容为例
+   public final int incrementAndGet() {
+        for (;;) {
+            int current = get();
+            int next = current + 1;
+            if (compareAndSet(current, next))
+                return next;
+        }
+    }
 ```
+- 首先可以看到，代码通过一个无限循环（spin）指导increment成功位置
+- 循环内容为
+  - 获取当前数值
+  - 计算+1
+  - 如果当前值还有效，更新为+1后的值
+  - 如果设置没有
+
+```java
+// 底层 unsafe提供
+public final boolean compareAndSet(int expect, int update) {
+        return unsafe.compareAndSwapInt(this, valueOffset, expect, update);
+    }
+```
+此处使用了 Unsafe类的compareAndSwapInt方法
+
+```java
+/**
+     * Atomically update Java variable to <tt>x</tt> if it is currently
+     * holding <tt>expected</tt>.
+     * @return <tt>true</tt> if successful
+     */
+    public final native boolean compareAndSwapInt(Object o, long offset,
+                                                  int expected,
+                                                  int x);
+```
+
+再底层不是用Java实现,是下面这个(jni调用下面的操作系统原生程序)
+
+```cpp
+// compareAndSwapInt的 native实现
+UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSwapInt(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint e, jint x))
+  UnsafeWrapper("Unsafe_CompareAndSwapInt");
+  oop p = JNIHandles::resolve(obj);
+  jint* addr = (jint *) index_oop_from_field_offset_long(p, offset);
+  return (jint)(Atomic::cmpxchg(x, addr, e)) == e;
+UNSAFE_END
+```
+可以看到实际调用 Atomic::cmpxchg() 方法
+```hpp
+inline jint     Atomic::cmpxchg    (jint     exchange_value, volatile jint*     dest, jint     compare_value) {
+  // alternative for InterlockedCompareExchange
+  int mp = os::is_MP();
+  __asm {
+    mov edx, dest
+    mov ecx, exchange_value
+    mov eax, compare_value
+    LOCK_IF_MP(mp)
+    cmpxchg dword ptr [edx], ecx
+  }
+}
+```
+这里可以看到用的嵌入的汇编实现，关键CPU指令是cmpxchg
+
+到这里没法再往下找代码了. 也就是说CAS的原子性实际上是CPU实现的. 其实在这一点上还是有排他锁的. 只是比起用synchronized, 这里的排他时间要短的多. 所以在多线程情况下性能会比较好.
+
+
+## 最后再贴一下x86的cmpxchg指定
+
+Opcode CMPXCHG
+
+CPU: I486+ 
+Type of Instruction: User 
+
+Instruction: CMPXCHG dest, src 
+
+Description: Compares the accumulator with dest. If equal the "dest" 
+is loaded with "src", otherwise the accumulator is loaded 
+with "dest". 
+
+Flags Affected: AF, CF, OF, PF, SF, ZF 
+
+CPU mode: RM,PM,VM,SMM 
++++++++++++++++++++++++ 
+Clocks: 
+CMPXCHG reg, reg 6 
+CMPXCHG mem, reg 7 (10 if compartion fails) 
+
+
+## ThreadFactory 线程工厂
+
+> 在Executor类中有个内部类 DefaultThreadFactory是这个接口的实现类，很多其他的项目都有自己的ThreadFactory实现
+
+- 我们看看 Executor 里面的ThreadFactory实现类
+```java
+   /**
+     * The default thread factory
+     */
+    static class DefaultThreadFactory implements ThreadFactory {
+        private static final AtomicInteger poolNumber = new AtomicInteger(1);
+        private final ThreadGroup group;
+        private final AtomicInteger threadNumber = new AtomicInteger(1);
+        private final String namePrefix;
+
+        DefaultThreadFactory() {
+            SecurityManager s = System.getSecurityManager();
+            group = (s != null) ? s.getThreadGroup() :
+                                  Thread.currentThread().getThreadGroup();
+            namePrefix = "pool-" +
+                          poolNumber.getAndIncrement() +
+                         "-thread-";
+        }
+
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(group, r,
+                                  namePrefix + threadNumber.getAndIncrement(),
+                                  0);
+            if (t.isDaemon())
+                t.setDaemon(false);
+            if (t.getPriority() != Thread.NORM_PRIORITY)
+                t.setPriority(Thread.NORM_PRIORITY);
+            return t;
+        }
+    }
+
+    /**
+     * Thread factory capturing access control context and class loader
+     */
+    static class PrivilegedThreadFactory extends DefaultThreadFactory {
+        private final AccessControlContext acc;
+        private final ClassLoader ccl;
+
+        PrivilegedThreadFactory() {
+            super();
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                // Calls to getContextClassLoader from this class
+                // never trigger a security check, but we check
+                // whether our callers have this permission anyways.
+                sm.checkPermission(SecurityConstants.GET_CLASSLOADER_PERMISSION);
+
+                // Fail fast
+                sm.checkPermission(new RuntimePermission("setContextClassLoader"));
+            }
+            this.acc = AccessController.getContext();
+            this.ccl = Thread.currentThread().getContextClassLoader();
+        }
+
+        public Thread newThread(final Runnable r) {
+            return super.newThread(new Runnable() {
+                public void run() {
+                    AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                        public Void run() {
+                            Thread.currentThread().setContextClassLoader(ccl);
+                            r.run();
+                            return null;
+                        }
+                    }, acc);
+                }
+            });
+        }
+    }
+```
+> DefaultThreadFactory里面有一个重要内容 ThreadGroup
+
+> Thread t = new Thread(group, r, namePrefix + threadNumber.getAndIncrement(), 0);
+
+ThreadGroup 有两个获取方式 
+```java
+ SecurityManager s = System.getSecurityManager();
+            group = (s != null) ? s.getThreadGroup() :
+                                  Thread.currentThread().getThreadGroup();
+```
+[关于ThreadGroup的讲解](../Thread与ThreadGroup.md)
