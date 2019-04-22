@@ -163,19 +163,21 @@ public void run(){
 
 ## ThreadGroup API
 
-4.1 基本属性
+### 基本属性
 　　name：当前线程的名称。
 　　parent：当前线程组的父线程组。
 　　MaxPriority：当前线程组的最高优先级，其中的线程优先级不能高于此。
-4.2 构造方法
+### 构造方法
 　　只介绍一个构造方法：
 　　ThreadGroup(ThreadGroup parent, String name) ：
 parent：父线程组，若为指定则是创建该线程组的线程所需的线程组。
 name：线程组的名称，可重复。
-4.3 常用方法摘要
-　　API详解（中文，英文）。
-int activeCount()：返回此线程组中活动线程的估计数。 
-void interrupt()：中断此线程组中的所有线程。 
-void uncaughtException(Thread t, Throwable e) ：设置当前线程组的异常处理器（只对没有异常处理器的线程有效）。
-4.4 ThreadGroup作用
+### 常用方法摘要
+
+- int activeCount()：返回此线程组中活动线程的估计数。 
+- void interrupt()：中断此线程组中的所有线程。 
+- void uncaughtException(Thread t, Throwable e) ：设置当前线程组的异常处理器（只对没有异常处理器的线程有效）。
+
+### ThreadGroup作用
+
 　　这个线程组可以用来管理一组线程，通过activeCount() 来查看活动线程的数量。其他没有什么大的用处。　
