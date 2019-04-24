@@ -141,11 +141,17 @@ public class LearnLock implements Lock,java.io.Serializable {
 ## 使用AbstractQueuedSynchronizer 实现 Lock
 
 - Node 状态说明
-  - CANCELLED 取消
+  - CANCELLED 取消 
+    - 因为超时或者中断取消，一旦取消，不能再改变状态
   - SINGAL 信号 表示继任线程需要取消停靠 （unparking）
+    - 当前NODE的继任者被blocked或者将要blocked，所以当当前NODE 释放或者取消的时候，需要unpark其继任者
+    - 为了避免竞争，acquire方法必须首先声明其需要signal，然后尝试acquire，如果acquire失败就block
   - CONDITION 线程正在等待condition
+    - 进入暂留状态，即使排队排到了也暂时不执行
   - PROPAGATE 传播 下一个acquireShared 应当被无条件传播
-  - 说明
+    - 为head node准备的状态， 表明releaseShared应该被传播到其他node上面
+    - 确保 传播能够持续下去，即使其他操作受此干涉
+  - ⭐⭐⭐说明
     - 等待队列是CLH的一种形式。CLH被广泛应用于自旋锁spinlock。
     - 我们在此处将它用于blocking synchronizer
     - 使用相同的策略，存储一些上一个节点predecessor 的控制信息
@@ -154,7 +160,18 @@ public class LearnLock implements Lock,java.io.Serializable {
     - queue里的每个node都以 specific-notification-style monitor身份 持有一个等待线程（等待一个singal）
     - status字段不负责控制是否能够获得lock
     - 当thread排到queue第一的时候他会尝试 acquire，但是并一定可以成功获取，如果失败了 当前release 的thread就需要 rewait
-- lock 方法
+    - ⭐
+    - 加入队列，只要把一个节点放入队尾。离开队列，重设head就可以
+    - 插入CLH队列只要对tail进行一次原子操作，所以是否在队列中有一个简单的atomic point 分界点。但是，判断一个node的successor需要多花费一些功夫，部分原因是因为要处理那些因为超时或者中断而被取消的任务
+    - ⭐prev 链接（对于原始的CLH lock没有什么作用），主要用于处理取消业务
+      - 如果一个node被取消，它的successor 会被重新连接到一个没有被取消的predecessor
+    - ⭐next 链接用来实现blocking机制。每个线程持各自的thread，所以 predecessor 能够通过next节点，找到它要唤醒的节点。
+      - 确定继任者（successor）必须避免与新加入队列的节点改动它们的前任（predecessor）竞争。
+      - 需要的时候（如果一个node的继任者为null），可以通过逆向检测原子更新的“tail”节点
+      - ⭐ 上面这两句是注释的翻译，我的理解：当一个节点（NodeA）要调用它的后继者的时候，可能发现后继者为null，但是此时另外一个线程可能正要添加一个新的node，同时这种情况意味着， NodeA此时是 tail节点，如果是这种情况:🔺 
+
+###  lock 方法
+
 ```java
 // lock 方法调用我们实现的 同步器的acquire方法
     public void lock() {
@@ -234,7 +251,25 @@ public class LearnLock implements Lock,java.io.Serializable {
 - shouldParkAfterFailedAcquire 条件
   - ⭐ pws为前一个node的waitStatus
   - pws == SINGAL  返回 true
-    - 前一个节点已经设置状态要求release
+    - 前一个节点已经设置状态要求release（也就是这个节点在活动状态）
+    - 所以当前节点正常等待就行了
   - pws > 0 表示前一个node任务取消了
-    - 把当前node连接到前一个的前一个上
+    - 把当前node连接到上一个没被取消的node上面
   - pws <= 0
+    - compareAndSetWaitStatus(前一个节点, 前一个节点的状态, Node.SIGNAL);
+    - 为了避免竞争，告诉上个节点，我在等待了
+```java
+    /**
+     * CAS waitStatus field of a node.
+     */
+    private static final boolean compareAndSetWaitStatus(Node node,
+                                                         int expect,
+                                                         int update) {
+        return unsafe.compareAndSwapInt(node, waitStatusOffset,
+                                        expect, update);
+    }
+    // unsafe.compareAndSwapInt 
+    // 通过 第一个和第二个参数 获取 现在的真实原始值
+    //                            用现在的真是原始值和 expect比较
+    //                            如果相等，更新这个值为 update
+```
