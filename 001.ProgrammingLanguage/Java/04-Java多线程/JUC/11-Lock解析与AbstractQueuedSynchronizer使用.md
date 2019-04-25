@@ -273,3 +273,85 @@ public class LearnLock implements Lock,java.io.Serializable {
     //                            用现在的真是原始值和 expect比较
     //                            如果相等，更新这个值为 update
 ```
+
+> 我们使用的tryAcquire
+```java
+       protected boolean tryAcquire(int acquires){
+            assert acquires == 1;
+            if(compareAndSetState(0,1)){// 当前状态为0（0为初始状态）
+                // tryAcquire一般都是成功的，真正让线程等待的 
+                //           是acquireQueued
+                // 把当前线程设置为 独占模式同步的当前所有者。
+                setExclusiveOwnerThread(Thread.currentThread());
+                return true;
+            }
+            return false;
+        }
+```
+
+我的总结
+- 调用lock方法后，如果没有直接获取到lock，当前线程就会在 acquireQueued的
+  - for(;;)循环中无限循环
+  - 在这个循环里面，线程不断尝试获取锁（ ）
+
+## unlock
+
+- unlock 会调用
+```java
+// Lock 实现类
+    @Override
+    public void unlock() {
+        sync.release(1);
+    }
+// AbstractQueuedSynchronizer
+    public final boolean release(int arg) {
+        if (tryRelease(arg)) {
+            Node h = head;
+            if (h != null && h.waitStatus != 0)// 如果有head并且有等待信息（singal cancelled condition propagate都可以）
+                unparkSuccessor(h);// 唤醒下一位
+            return true;
+        }
+        return false;
+    }
+// AbstractQueuedSynchronizer实现类
+      protected boolean tryRelease(int releases){
+          assert releases == 1;
+          if(getState()==0) throw new IllegalMonitorStateException();
+          setExclusiveOwnerThread(null);
+          setState(0);
+          return true;
+      }
+//  唤醒下一位
+  /**
+     * Wakes up node's successor, if one exists.
+     *
+     * @param node the node
+     */
+    private void unparkSuccessor(Node node) {
+        /*
+         * If status is negative (i.e., possibly needing signal) try
+         * to clear in anticipation of signalling.  It is OK if this
+         * fails or if status is changed by waiting thread.
+         */
+        int ws = node.waitStatus;
+        if (ws < 0)
+            compareAndSetWaitStatus(node, ws, 0);
+
+        /*
+         * Thread to unpark is held in successor, which is normally
+         * just the next node.  But if cancelled or apparently null,
+         * traverse backwards from tail to find the actual
+         * non-cancelled successor.
+         */
+        Node s = node.next;
+        if (s == null || s.waitStatus > 0) {
+            s = null;
+            for (Node t = tail; t != null && t != node; t = t.prev)
+                if (t.waitStatus <= 0)
+                    s = t;
+        }
+        if (s != null)
+            LockSupport.unpark(s.thread);
+    }
+
+```
