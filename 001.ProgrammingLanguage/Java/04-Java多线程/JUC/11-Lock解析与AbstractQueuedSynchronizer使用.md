@@ -247,7 +247,6 @@ public class LearnLock implements Lock,java.io.Serializable {
         }
     } 
 ```
-
 - shouldParkAfterFailedAcquire 条件
   - ⭐ pws为前一个node的waitStatus
   - pws == SINGAL  返回 true
@@ -258,6 +257,22 @@ public class LearnLock implements Lock,java.io.Serializable {
   - pws <= 0
     - compareAndSetWaitStatus(前一个节点, 前一个节点的状态, Node.SIGNAL);
     - 为了避免竞争，告诉上个节点，我在等待了
+
+
+- tryAcquire
+```java
+protected boolean tryAcquire(int acquires){
+            assert acquires == 1;
+            if(compareAndSetState(0,1)){
+                setExclusiveOwnerThread(Thread.currentThread());
+                // 当前线程设置为 owner
+                return true;
+            }
+            return false;
+        }
+```
+
+
 ```java
     /**
      * CAS waitStatus field of a node.
@@ -293,6 +308,8 @@ public class LearnLock implements Lock,java.io.Serializable {
 - 调用lock方法后，如果没有直接获取到lock，当前线程就会在 acquireQueued的
   - for(;;)循环中无限循环
   - 在这个循环里面，线程不断尝试获取锁（ ）
+  - 当前线程获取锁成功之后，会把当前线程的前者（上一个head）从队列里面移除
+- 线程是如何锁住的： 没有拿到锁的线程会一直在循环中困住，拿到锁之后 return 才能执行后面的代码，一次来实现锁
 
 ## unlock
 
@@ -308,7 +325,7 @@ public class LearnLock implements Lock,java.io.Serializable {
         if (tryRelease(arg)) {
             Node h = head;
             if (h != null && h.waitStatus != 0)// 如果有head并且有等待信息（singal cancelled condition propagate都可以）
-                unparkSuccessor(h);// 唤醒下一位
+                unparkSuccessor(h);// 唤醒下一位 （从head找到head的下一位）
             return true;
         }
         return false;
@@ -324,7 +341,7 @@ public class LearnLock implements Lock,java.io.Serializable {
 //  唤醒下一位
   /**
      * Wakes up node's successor, if one exists.
-     *
+     *  通常（上面代码里面）传入的node是head，要做的就是 把head从队列里面移除，唤醒next
      * @param node the node
      */
     private void unparkSuccessor(Node node) {
@@ -346,6 +363,7 @@ public class LearnLock implements Lock,java.io.Serializable {
         Node s = node.next;
         if (s == null || s.waitStatus > 0) {
             s = null;
+            // 如果下一位被取消（中断等）了，从后向前找到继任者
             for (Node t = tail; t != null && t != node; t = t.prev)
                 if (t.waitStatus <= 0)
                     s = t;
@@ -354,4 +372,27 @@ public class LearnLock implements Lock,java.io.Serializable {
             LockSupport.unpark(s.thread);
     }
 
+// LockSupport.unpark(s.thread)
+
+    /**
+     * Makes available the permit for the given thread, if it
+     * was not already available.  If the thread was blocked on
+     * {@code park} then it will unblock.  Otherwise, its next call
+     * to {@code park} is guaranteed not to block. This operation
+     * is not guaranteed to have any effect at all if the given
+     * thread has not been started.
+     *
+     * @param thread the thread to unpark, or {@code null}, in which case
+     *        this operation has no effect
+     */
+    public static void unpark(Thread thread) {
+        if (thread != null)
+            UNSAFE.unpark(thread); // 如果线程被park方法阻塞了，用这个方法 取消阻塞
+                                   // 当我们用 tryLocl -> sync.tryAcuireNanos 方法的时候
+                                   // 会用 LockSupport类通过UNSAFE 将线程park一段时间
+                                   // 这里就是用来 处理这种情况的
+                                   // park 与 unpark 是可以互相通信的
+    }
 ```
+
+![Unsafe.park/unpark]()
