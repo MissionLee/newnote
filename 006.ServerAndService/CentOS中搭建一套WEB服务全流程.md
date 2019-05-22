@@ -27,3 +27,4 @@
   - [Nginx](./01.CentOS-7/005.安装Nginx.md)
   - git
   
+Ro998otPass&
