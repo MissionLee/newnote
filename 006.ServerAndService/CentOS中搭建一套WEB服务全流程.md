@@ -26,5 +26,6 @@
   - [Maven](./01.CentOS-7/004.安装Maven.md)
   - [Nginx](./01.CentOS-7/005.安装Nginx.md)
   - git
+    - yum install git
   
 Ro998otPass&
