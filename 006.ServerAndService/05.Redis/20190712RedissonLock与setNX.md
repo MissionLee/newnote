@@ -6,6 +6,15 @@
 
 > 在我决定在项目里面自己开发一个redis分布式锁的时候，KingLeading多次跟我说过使用lua脚本来做锁，当然我知道lua脚本可以做什么事情，并且Redis支持执行lua脚本。在我尝试写一个锁的时候，也搜索到了相关的内容。不过我并没有尝试去使用lua脚本，因为“看起来 Java的redis客户端 jedis/Spring#redisTemplate” 已经能够满足使用
 
+- 总结在前
+  - 网上看到的一些错误的例子： 使用的是  setNX + expire 方法
+    - 错误问题： setNX 执行成功， expire不成功 造成的问题
+    - 还有一些过期的言论：
+      - 看到一些说只能使用 eval 执行lua脚本，这是因为 set 增强方法是在 比较新的redis版本出现的，在很多过期攻略里面，或者“资深”开发者哪里，这部分可能没有即时更新知识
+  - 我们自己开发的基于 （redisTemplate 提供的 setIFAbsent）的方法（实际使用 增强版 set命令）
+  - 一些使用上的问题
+    - Redisson： redisson 的实现，解锁验证的是“线程”，并不是在所有情况下都符合业务要求，有时候可能用一个 钥匙“value”来解锁，我自己（参考网络文章修改）实现的版本实际就是这个作用
+
 ## 方案1： 利用 setNX 命令 set 扩展命令
 
 看了 SpringData redis（Jedis）一些源码， redisTemplate 提供的和对应的redis自身方法是：
@@ -193,6 +202,11 @@ public class RedisDistributedLock {
 
 - redisson里面会有几个不同情况下
 
+- 调用链条： RedissonLock#lock -> tryAcauire -> tryAcquireAsync
+  -  <T> RFuture<T> tryLockInnerAsync(long leaseTime, TimeUnit unit, long threadId, RedisStrictCommand<T> command)
+  - leaseTime / TimeUnit : 自动释放事件
+  - RedisCommand/RedisStrictCommand
+
 ```java
     <T> RFuture<T> tryLockInnerAsync(long leaseTime, TimeUnit unit, long threadId, RedisStrictCommand<T> command) {
         internalLockLeaseTime = unit.toMillis(leaseTime);
@@ -228,21 +242,23 @@ public class RedisDistributedLock {
 
 ```java
     private <T, R> RFuture<R> evalAsync(NodeSource nodeSource, boolean readOnlyMode, Codec codec, RedisCommand<T> evalCommandType, String script, List<Object> keys, Object... params) {
+        // 缓存script 并且 eval 模式下
         if (isEvalCacheActive() && evalCommandType.getName().equals("EVAL")) {
-            RPromise<R> mainPromise = new RedissonPromise<R>();
+            RPromise<R> mainPromise = new RedissonPromise<R>(); // 使用了 netty框架完成底层数据传输，RedissonPromise 封装了 netty的Promise： ImmediatePromise<V>(this) | io.netty.util.concurrent
             
             Object[] pps = copy(params);
             
             RPromise<R> promise = new RedissonPromise<R>();
-            String sha1 = calcSHA(script);
-            RedisCommand cmd = new RedisCommand(evalCommandType, "EVALSHA");
+            String sha1 = calcSHA(script); // 计算一下 sha1
+                                           // script 也要转换成 byte[] Redisson会缓存转换结果
+            RedisCommand cmd = new RedisCommand(evalCommandType, "EVALSHA");//点到最底层 都没看到 RedisCommand 到底有啥用
             List<Object> args = new ArrayList<Object>(2 + keys.size() + params.length);
-            args.add(sha1);
-            args.add(keys.size());
-            args.addAll(keys);
-            args.addAll(Arrays.asList(params));
+            args.add(sha1);// script
+            args.add(keys.size());// key个数
+            args.addAll(keys);// key
+            args.addAll(Arrays.asList(params));//参数
             async(false, nodeSource, codec, cmd, args.toArray(), promise, 0, false);
-            
+            // 使用promise 执行
             promise.onComplete((res, e) -> {
                 if (e != null) {
                     if (e.getMessage().startsWith("NOSCRIPT")) {
@@ -325,69 +341,10 @@ end;
 return redis.call('pttl', KEYS[1]); -- 以毫秒为单位 返回剩余过期时间
 ```
 
-## 这是 Redisson对于 eval 方法的封装（之一）
+## 底层执行
 ```java
-// NodeSource 
-// readOnlyMode
-// Codec
-// RedisCommand
-// script
-// keys
-// params
-private <T, R> RFuture<R> evalAsync(NodeSource nodeSource, boolean readOnlyMode, Codec codec, RedisCommand<T> evalCommandType, String script, List<Object> keys, Object... params) {
-    if (isEvalCacheActive() && evalCommandType.getName().equals("EVAL")) {
-        RPromise<R> mainPromise = new RedissonPromise<R>();
-        
-        Object[] pps = copy(params);
-        
-        RPromise<R> promise = new RedissonPromise<R>();
-        String sha1 = calcSHA(script);
-        RedisCommand cmd = new RedisCommand(evalCommandType, "EVALSHA");
-        List<Object> args = new ArrayList<Object>(2 + keys.size() + params.length);
-        args.add(sha1);
-        args.add(keys.size());
-        args.addAll(keys);
-        args.addAll(Arrays.asList(params));
-        async(false, nodeSource, codec, cmd, args.toArray(), promise, 0, false);
-        
-        promise.onComplete((res, e) -> {
-            if (e != null) {
-                if (e.getMessage().startsWith("NOSCRIPT")) {
-                    RFuture<String> loadFuture = loadScript(keys, script);
-                    loadFuture.onComplete((r, ex) -> {
-                        if (ex != null) {
-                            free(pps);
-                            mainPromise.tryFailure(ex);
-                            return;
-                        }
-
-                        RedisCommand command = new RedisCommand(evalCommandType, "EVALSHA");
-                        List<Object> newargs = new ArrayList<Object>(2 + keys.size() + params.length);
-                        newargs.add(sha1);
-                        newargs.add(keys.size());
-                        newargs.addAll(keys);
-                        newargs.addAll(Arrays.asList(pps));
-                        async(false, nodeSource, codec, command, newargs.toArray(), mainPromise, 0, false);
-                    });
-                } else {
-                    free(pps);
-                    mainPromise.tryFailure(e);
-                }
-                return;
-            }
-            free(pps);
-            mainPromise.trySuccess(res);
-        });
-        return mainPromise;
-    }
-    
-    RPromise<R> mainPromise = createPromise();
-    List<Object> args = new ArrayList<Object>(2 + keys.size() + params.length);
-    args.add(script);
-    args.add(keys.size());
-    args.addAll(keys);
-    args.addAll(Arrays.asList(params));
-    async(readOnlyMode, nodeSource, codec, evalCommandType, args.toArray(),mainPromise, 0, false);
-    return mainPromise;
-}
+   public <V, R> void async(boolean readOnlyMode, NodeSource source, Codec codec,
+            RedisCommand<V> command, Object[] params, RPromise<R> mainPromise, int attempt, 
+            boolean ignoreRedirect) 
+            // 这段代码就不看了
 ```
