@@ -1,0 +1,283 @@
+# Redis命令
+
+- 字符串
+  - SET : ⭐ 这个命令的增强型，是 真正redis分布式锁的实现命令
+    - SET key value [EX seconds] [PX milliseconds] [NX|XX]
+  - SETNX 
+  - SETEX 
+  - PSETEX 以毫秒位单位的 SETEX
+  - GET
+  - GETSET
+  - STRLEN 返回字符串长度
+  - APPEND 追加，返回字符串长度
+  - SETRANGE ： 
+    - SETRANGE key offset value ，
+    - 从偏移量 offset 开始， 用 value 参数覆写(overwrite)键 key 储存的字符串值。
+    - 原字符和偏移量之间的空白将用零字节(zerobytes, "\x00" )进行填充。
+  - GETRANGE
+    - GETRANGE key start end
+  - INCR
+  - INCRBY
+  - MSET
+    - MSET key value [key value …]
+  - MSETNX
+  - MGET
+    - MSET key value [key value …]
+- 哈希表
+  - HSET 每次设置 hash表中 的一对数据
+    - HSET hash field value
+  - HSETNX
+    - 成功返回1 放弃返回 0
+  - HGET 取 hash中一个 key的值
+    - HGET hash field
+  - HEXISTS 判断一个key存在
+  - HDEL
+    - HDEL key field [field …]
+  - HLEN
+    - 返回指定 hash 中 有多少个域
+  - HSTRLEN
+    - 指定hash中指定域 关联的 字符串长度
+    - HSTRLEN key field
+  - HINCRBY
+    - HINCRBY key field increment
+  - HINCRBYFLOAT
+  - HMSET  设置多个键值对
+    - HMSET key field value [field value …]
+  - HMGET 获取多个key 对应的值， 返回值的顺序 和给key的舒徐一样
+    - HMGET key field [field …]
+  - HKEYS 获取指定hash所有的key
+    - HKEYS key
+  - HVALS 获取所有 值
+    - HVALS key
+  - HGETALL
+    - HGETALL key
+    - 按照 一个 key 一个 value的顺序 返回数据
+  - HSCAN  参考scan命令
+- 列表 ， 列表是有序的，L / R 表示 从左边/从右边  ⭐ 注意， 部分命令开头的L 代表list 部分，同时有默认的 left的意思，有些命令只代表这是个list命令，
+  - LPUSH
+    - LPUSH key value [value …]
+  - LPUSHX
+  - RPUSH
+  - RPUSHX
+  - LPOP  移除并且返回 
+  - RPOP
+  - RPOPLPUSH
+  - LREM 筛选并且移除
+    - LREM key count value
+    - count 表示移除数量， count的正负可以控制 从表头或者表尾开始搜索， count 为0 的时候，移除所有等于 value的值
+  - LLEN
+    - 返回长度
+    - 不存在返回 0
+    - 正常返回 长度
+    - key不是列表类型 返回错误
+  - LINDEX
+    - LINDEX key index 获取下表为 index ，正负代表方向， 0代表第一个元素，  -1 代表倒数第一个元素 ⭐⭐ 注意 两头分别是 0 / -1
+  - LINSERT
+    - LINSERT key BEFORE|AFTER pivot value
+    - 将值 value 插入到列表 key 当中，位于值 pivot 之前或之后。
+    - 返回：
+      - 0 没有列表，或者列表空
+      - -1 没找到 pivot
+      - 成功返回更新后列表长度
+  - LSET 把index位置设置为value
+    - LSET key index value 
+  - LRANGE 获取指定范围内的元素 ，也可使用负数下表
+    - LRANGE key start stop
+    - start 超过限制报错， stop超过会被改为end
+  - LTRIM 保留 start~stop之间的元素 双闭集合
+    - LTRIM key start stop
+  - BLPOP ， B = Blocking，它是 LPOP key 命令的阻塞版本，当给定列表内没有任何元素可供弹出的时候，连接将被 BLPOP 命令阻塞，直到等待超时或发现可弹出元素为止。
+    - BLPOP key [key …] timeout
+    - 可以实现，找到给定的列表中，第一个非空列表的一个元素 pop
+    - 超时未 0 的时候，可以无限期等待
+    - 同一个key被多个客户端阻塞，就先阻塞先服务 ⭐
+    - ⭐ 这个命令 在 事务中 没有阻塞意义，因为事务会让其他客户端没法 向监听的key里面放入值
+  - BRPOP
+  - BRPOPLPUSH
+- 集合
+  - SADD
+  - SISMEMBER
+  - SPOP
+  - SRANDMEMBER
+  - SREM
+  - SMOVE
+  - SCARD
+  - SMEMBERS
+  - SSCAN
+  - SINTER
+  - SINTERSTORE
+  - SUNION
+  - SUNIONSTORE
+  - SDIFF
+  - SDIFFSTORE
+- 有序集合
+  - ZADD
+  - ZSCORE
+  - ZINCRBY
+  - ZCARD
+  - ZCOUNT
+  - ZRANGE
+  - ZREVRANGE
+  - ZRANGEBYSCORE
+  - ZREVRANGEBYSCORE
+  - ZRANK
+  - ZREVRANK
+  - ZREM
+  - ZREMRANGEBYRANK
+  - ZREMRANGEBYSCORE
+  - ZRANGEBYLEX
+  - ZLEXCOUNT
+  - ZREMRANGEBYLEX
+  - ZSCAN
+  - ZUNIONSTORE
+  - ZINTERSTORE
+- HyperLogLog 大数据情况下统计用 https://baijiahao.baidu.com/s?id=1611726471431642966&wfr=spider&for=pc
+  - PFADD
+  - PFCOUNT
+  - PFMERGE
+- GEO 支持存储地理位置信息用来实现诸如附近位置、摇一摇这类依赖于地理位置信息的功能.geo的数据类型为zset.
+  - GEOADD
+  - GEOPOS
+  - GEODIST
+  - GEORADIUS
+  - GEORADIUSBYMEMBER
+  - GEOHASH
+- bitmap 位操作 基于 string
+  - SETBIT
+  - GETBIT
+  - BITCOUNT
+  - BITPOS
+  - BITOP
+  - BITFIELD
+- 数据库命令
+  - EXISTS
+  - 返回值
+  - 代码示例
+  - TYPE
+  - 返回值
+  - 代码示例
+  - RENAME
+  - 返回值
+  - 代码示例
+  - RENAMENX
+  - 返回值
+  - 代码示例
+  - MOVE
+  - 返回值
+  - 代码示例
+  - DEL
+  - 返回值
+  - 代码示例
+  - RANDOMKEY
+  - 返回值
+  - 代码示例
+  - DBSIZE
+  - 返回值
+  - 代码示例
+  - KEYS
+  - 返回值
+  - 代码示例
+  - SCAN
+  - SCAN 命令的基本用法
+  - SCAN 命令的保证（guarantees）
+  - SCAN 命令每次执行返回的元素数量
+  - COUNT 选项
+  - MATCH 选项
+  - 并发执行多个迭代
+  - 中途停止迭代
+  - 使用错误的游标进行增量式迭代
+  - 迭代终结的保证
+  - 返回值
+  - SORT
+  - 一般 SORT 用法
+  - 使用 ALPHA 修饰符对字符串进行排序
+  - 使用 LIMIT 修饰符限制返回结果
+  - 使用外部 key 进行排序
+  - 保存排序结果
+  - 返回值
+  - FLUSHDB
+  - 返回值
+  - 代码示例
+  - FLUSHALL
+  - 返回值
+  - SELECT
+  - 返回值
+  - 代码示例
+  - SWAPDB
+  - 返回值
+  - 代码示例
+- 自动过期
+  - EXPIRE
+  - EXPIREAT
+  - TTL
+  - PERSIST
+  - PEXPIRE
+  - PEXPIREAT
+  - PTTL
+- 事务
+  - MULTI
+  - EXEC
+  - DISCARD
+  - 返回值
+  - 代码示例
+  - WATCH
+  - UNWATCH
+- LUA脚本
+  - EVAL
+  - EVALSHA
+  - SCRIPT_LOAD
+  - SCRIPT_EXISTS
+  - SCRIPT_FLUSH
+  - SCRIPT_KILL
+- 持久化
+  - SAVE
+  - BGSAVE
+  - BGREWRITEAOF
+  - LASTSAVE
+- 发布于订阅
+  - PUBLISH
+  - SUBSCRIBE
+  - PSUBSCRIBE
+  - UNSUBSCRIBE
+  - PUNSUBSCRIBE
+  - PUBSUB
+- 复制（副本）
+  - SLAVEOF
+  - ROLE
+- 客户端/服务器
+  - AUTH
+  - QUIT
+  - INFO
+  - SHUTDOWN
+  - TIME
+  - CLIENT_GETNAME
+  - CLIENT_KILL
+  - CLIENT_LIST
+  - CLIENT_SETNAME
+- 配置选项
+  - CONFIG_SET
+  - 返回值
+  - 代码示例
+  - CONFIG_GET
+  - 返回值
+  - CONFIG_RESETSTAT
+  - 返回值
+  - 代码示例
+  - CONFIG_REWRITE
+  - 原子性重写
+  - 返回值
+  - 代码示例
+- 调试
+  - PING
+  - ECHO
+  - OBJECT
+  - SLOWLOG
+  - MONITOR
+  - DEBUG_OBJECT
+  - DEBUG_SEGFAULT
+- 内部命令
+  - MIGRATE
+  - DUMP
+  - RESTORE
+  - SYNC
+  - PSYNC
