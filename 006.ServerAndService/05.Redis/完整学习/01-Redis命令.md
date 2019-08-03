@@ -1,4 +1,4 @@
-# Redis命令
+# Redis命令  参照 http://redisdoc.com/list/brpoplpush.html
 
 - 字符串
   - SET : ⭐ 这个命令的增强型，是 真正redis分布式锁的实现命令
@@ -54,6 +54,7 @@
     - 按照 一个 key 一个 value的顺序 返回数据
   - HSCAN  参考scan命令
 - 列表 ， 列表是有序的，L / R 表示 从左边/从右边  ⭐ 注意， 部分命令开头的L 代表list 部分，同时有默认的 left的意思，有些命令只代表这是个list命令，
+  - ⭐ ⭐ 列表是可以重复的 ⭐ ⭐  列表是可以重复的
   - LPUSH
     - LPUSH key value [value …]
   - LPUSHX
@@ -94,47 +95,119 @@
     - ⭐ 这个命令 在 事务中 没有阻塞意义，因为事务会让其他客户端没法 向监听的key里面放入值
   - BRPOP
   - BRPOPLPUSH
-- 集合
+- 集合   ⭐⭐⭐  集合 不可重复
   - SADD
-  - SISMEMBER
+    - SADD key member [member …]
+  - SISMEMBER 查询成员是否存在
+    - SADD key member [member …]
   - SPOP
+    - 随机移除并返回
   - SRANDMEMBER
+    - SRANDMEMBER key [count]
+    - count 没给，随机返回一个元素
+    - count 正数，尽量满足 返回 count 个的元素数组，如果count超过集合大小，返回整个集合
+    - count 负数， 返回数组，数组元素可能重复出现多次
   - SREM
+    - SREM key member [member …]
+    - 移除 所有的 member（集合可以重复）
+    - 返回成功移除的个数
   - SMOVE
+    - SMOVE source destination member
+    - 将 member 元素从 source 集合移动到 destination 集合。
+    - 成功返回1 没操作返回0
   - SCARD
+    - 返回集合中元素的数量
   - SMEMBERS
+    - 返回所有
   - SSCAN
+    - SSCAN key cursor [MATCH pattern] [COUNT count]
+    - 具体参考 SCAN
   - SINTER
+    - SINTER key [key …]
+    - 取多个集合的交集成员
   - SINTERSTORE
+    - SINTERSTORE destination key [key …]
+    - 取交集，并保存到 destination
   - SUNION
+    - SUNION key [key …]
+    - 取并集
   - SUNIONSTORE
+    - SUNIONSTORE destination key [key …]
+    - 取并集并且保存
   - SDIFF
+    - SDIFF key [key …]
+    - 取差集
   - SDIFFSTORE
-- 有序集合
+    - 取差集并保存
+- 有序集合  ⭐⭐有序集合 以 score 排序， 如果值已经存在，会更新score
   - ZADD
+    - ZADD key score member [[score member] [score member] …]
   - ZSCORE
+    - ZSCORE key member
+    - 获取成员 socre值
   - ZINCRBY
+    - ZINCRBY key increment member
+    - 为成员member 的 score 增加 increment ， 可正可负，如果成员不存在，就转为执行 添加命令
   - ZCARD
+    - 返回基数（有序集合成员数量）
   - ZCOUNT
+    - ZCOUNT key min max
+    - 返回 score再min max之间的数量，双闭
   - ZRANGE
+    - ZRANGE key start stop [WITHSCORES]
+    - 返回 score 在范围内的 成员
+    - 返回内容是 递加的
   - ZREVRANGE
+    - ZREVRANGE key start stop [WITHSCORES]
+    - 同上 返回内容 递减
   - ZRANGEBYSCORE
+    - ZRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]
+    - limit offset count 类似于 sql中的含义
+    - min max 可以实 -inf +inf 
+    - 默认使用闭区间，如果想要使用开区间 可以 加上 (  例如： `ZRANGEBYSCORE zset (1 5` 
   - ZREVRANGEBYSCORE
   - ZRANK
+    - ZRANK key member 返回排名，最小为0
   - ZREVRANK
   - ZREM
+    - ZREM key member [member …] 
+    - 移除这些成员，不存在的忽略
   - ZREMRANGEBYRANK
+    - ZREMRANGEBYRANK key start stop
+    - 移除有序集 key 中，指定排名(rank)区间内的所有成员。
+    - 返回被移除的数量
   - ZREMRANGEBYSCORE
+    - ZREMRANGEBYSCORE key min max
+    - 移除分数段的，类似上面
   - ZRANGEBYLEX
+    - 当有序集合所有成员具有相同分值时，有序集合的元素会根据成员的字段顺序排序  ⭐ 这是一个常用的机制，通过给定相同的socre，让数据按照字典排序 ⭐
+    - ZRANGEBYLEX key min max [LIMIT offset count]
+    - Z + RANGE + BY + LEX ： 其中 lex = lexicographical ordering 字典顺序.
+    - ⭐ 必须指定 开闭 ( [ , ⭐特殊值 +- 在 max/min参数中代表 正无限，负无限： `ZRANGEBYLEX zSet - +` 表示返回所有
   - ZLEXCOUNT
+    - ZLEXCOUNT key min max
+    - 对于一个所有成员的分值都相同的有序集合键 key 来说， 这个命令会返回该集合中， 成员介于 min 和 max 范围内的元素数量。
   - ZREMRANGEBYLEX
+    - ZREMRANGEBYLEX key min max
+    - 对于一个所有成员的分值都相同的有序集合键 key 来说， 这个命令会移除该集合中， 成员介于 min 和 max 范围内的所有元素。
   - ZSCAN
+    - 🔺 参考 数据库命令 scan
   - ZUNIONSTORE
+    - ZUNIONSTORE destination numkeys key [key …] [WEIGHTS weight [weight …]] [AGGREGATE SUM|MIN|MAX]
+    - Z + UNION + STORE
+    - numkeys 是 给定 key的数量 （参数多，必须判定以下）
+    - weights  给集合指定 乘法因子， 聚合之前score通过 weight进行调整， 参数可选，不指定的话，默认 1
+    - AGGREGATE 聚合方式，就是出现 相同值的时候，处理 score的方式
+    - 返回结果集基数
   - ZINTERSTORE
-- HyperLogLog 大数据情况下统计用 https://baijiahao.baidu.com/s?id=1611726471431642966&wfr=spider&for=pc
+    - 交集，参考上面并集
+- HyperLogLog [大数据情况下统计用]() https://baijiahao.baidu.com/s?id=1611726471431642966&wfr=spider&for=pc
   - PFADD
+    - PFADD key element [element …]
   - PFCOUNT
+    - PFCOUNT key [key …]
   - PFMERGE
+    - PFMERGE destkey sourcekey [sourcekey …]
 - GEO 支持存储地理位置信息用来实现诸如附近位置、摇一摇这类依赖于地理位置信息的功能.geo的数据类型为zset.
   - GEOADD
   - GEOPOS
