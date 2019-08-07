@@ -319,24 +319,70 @@
   - PTTL
 - 事务
   - MULTI
+    - 标记事务开始
   - EXEC
+    - 执行事务中的命令
+    - 假如某个(或某些) key 正处于 WATCH 命令的监视之下，且事务块中有和这个(或这些) key 相关的命令，那么 EXEC 命令只在这个(或这些) key 没有被其他命令所改动的情况下执行并生效，否则该事务被打断(abort)。
   - DISCARD
+    - 取消事务，放弃执行事务块内的所有命令。
+    - 如果正在使用 WATCH 命令监视某个(或某些) key，那么取消所有监视，等同于执行命令 UNWATCH 。
   - 返回值
-  - 代码示例
+    - 总是返回ok
   - WATCH
+    - WATCH key [key …]
+    - 监视一个(或多个) key ，如果在事务执行之前这个(或这些) key 被其他命令所改动，那么事务将被打断。
   - UNWATCH
 - LUA脚本
   - EVAL
+    - EVAL script numkeys key [key …] arg [arg …]
+    - 脚本原子性: redis使用单个lua解释器去运行所有脚本,redis保证脚本原子性运行.这和使用multi / exec 事务类似
+    - ⭐错误处理
+      - redis.call 发生错误,脚本停止,并返回一个脚本错误
+      - redis.pcall 不引发raise错误,返回一个带 err域的lua表(table)
+    - 纯函数脚本: ⭐在编写脚本方面，一个重要的要求就是，脚本应该被写成纯函数(pure function)。
+    - 为了保证 "纯函数脚本",Redis做了一些限制
+      - Lua没有访问系统时间或其他内部状态的命令
+      - Lua脚本中执行 随机类型 命令的时候,会报错,例如: RANDOMKEY, TIME
+      - 每当lua脚本调用那些返回无序元素的命令时,执行命令所得的数据在返回给lua之前会执行一个静默的字典序排序,例如: 因为 Redis 的 Set 保存的是无序的元素，所以在 Redis 命令行客户端中直接执行 SMEMBERS key ，返回的元素是无序的，但是，假如在脚本中执行 redis.call("smembers", KEYS[1]) ，那么返回的总是排过序的元素。
+      - 对 Lua 的伪随机数生成函数 math.random 和 math.randomseed 进行修改，使得每次在运行新脚本的时候，总是拥有同样的 seed 值。这意味着，每次运行脚本时，只要不使用 math.randomseed ，那么 math.random 产生的随机数序列总是相同的。
+    - ⭐ 全局变量保护
+      - 为了防止不必要的数据泄漏进 Lua 环境， Redis 脚本不允许创建全局变量。如果一个脚本需要在多次执行之间维持某种状态，它应该使用 Redis key 来进行状态保存。
+      - ⭐ 需要定义变量,全部加上 local 字段就行了
+    - 库 Redis内置Lua解释器加载了以下lua库
+      - base
+      - table
+      - string
+      - math
+      - debug
+      - cjson  这是个很快的 json库,其他都是lua的标准库
+      - cmsgpack
+    - ⭐ 沙箱(sandbox)和最大执行时间
+      - 通常脚本在毫秒级别内完成
+      - 默认最大执行时间是5秒
+      - 当脚本达到最大执行时间
+        - Redis 记录一个脚本正在超时运行
+        - Redis 开始重新接受其他客户端的命令请求，但是只有 SCRIPT KILL 和 SHUTDOWN NOSAVE 两个命令会被处理，对于其他命令请求， Redis 服务器只是简单地返回 BUSY 错误。
+        - 可以使用 SCRIPT KILL 命令将一个仅执行只读命令的脚本杀死，因为只读命令并不修改数据，因此杀死这个脚本并不破坏数据的完整性
+        - 如果脚本已经执行过写命令，那么唯一允许执行的操作就是 SHUTDOWN NOSAVE ，它通过停止服务器来阻止当前数据集写入磁盘
+    - 流水线(pipeline)上下文(context)中的 EVALSHA
+      - 建议: 流水线中用 eval命令,避免 evalsha出现 noscript: 这会导致流水线没法重新执行
+      - 建议:检查流水线中要用到的所有命令，找到其中的 EVAL 命令，并使用 SCRIPT EXISTS sha1 [sha1 …] 命令检查要用到的脚本是不是全都已经保存在缓存里面了。如果所需的全部脚本都可以在缓存里找到，那么就可以放心地将所有 EVAL 命令改成 EVALSHA 命令，否则的话，就要在流水线的顶端(top)将缺少的脚本用 SCRIPT LOAD script 命令加上去。
   - EVALSHA
   - SCRIPT_LOAD
+    - 加载一个脚本到缓存中,但是不执行
   - SCRIPT_EXISTS
   - SCRIPT_FLUSH
   - SCRIPT_KILL
+    - 杀死当前正在执行的lua脚本,当且仅当这个脚本没有执行过任何写操作时,这个命令才生效
 - 持久化
   - SAVE
+    - SAVE 命令执行一个同步保存操作，将当前 Redis 实例的所有数据快照(snapshot)以 RDB 文件的形式保存到硬盘。
   - BGSAVE
+    - 在后台异步(Asynchronously)保存当前数据库的数据到磁盘。
   - BGREWRITEAOF
+    - 执行一个 AOF文件 重写操作。重写会创建一个当前 AOF 文件的体积优化版本。
   - LASTSAVE
+    - 返回最近一次 Redis 成功将数据保存到磁盘上的时间，以 UNIX 时间戳格式表示。
 - 发布于订阅
   - PUBLISH
   - SUBSCRIBE
