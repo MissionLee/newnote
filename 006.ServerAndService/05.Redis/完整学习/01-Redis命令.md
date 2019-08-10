@@ -201,7 +201,9 @@
     - 返回结果集基数
   - ZINTERSTORE
     - 交集，参考上面并集
-- HyperLogLog [大数据情况下统计用]() https://baijiahao.baidu.com/s?id=1611726471431642966&wfr=spider&for=pc
+- HyperLogLog [大数据情况下统计用 HyperLogLog](./03-HyperLogLog.md) 
+  - https://baijiahao.baidu.com/s?id=1611726471431642966&wfr=spider&for=pc
+  - https://www.jianshu.com/p/55defda6dcd2
   - PFADD
     - PFADD key element [element …]
   - PFCOUNT
@@ -217,96 +219,170 @@
   - GEOHASH
 - bitmap 位操作 基于 string
   - SETBIT
+    - SETBIT key offset value
+    - 对 key 所储存的字符串值，设置或清除指定偏移量上的位(bit)
   - GETBIT
+    - GETBIT key offset
   - BITCOUNT
+    - BITCOUNT key [start] [end]
+    - 被设置为 1 的位的数量。
   - BITPOS
+    - BITPOS key bit [start] [end]
+    - 返回位图中第一个值为 bit 的二进制位的位置。
   - BITOP
+    - BITOP operation destkey key [key …]
+    - operation
+      - AND,OR,NOT,XOR
+      - 除了not一个参数key,其他都可以1到多个
+      - 结果保存到 destkey
   - BITFIELD
+    - BITFIELD key [GET type offset] [SET type offset value] [INCRBY type offset increment] [OVERFLOW WRAP|SAT|FAIL]
+    - BITFIELD 命令可以将一个 Redis 字符串看作是一个由二进制位组成的数组， 并对这个数组中储存的长度不同的整数进行访问 （被储存的整数无需进行对齐）。 换句话说， 通过这个命令， 用户可以执行诸如 “对偏移量 1234 上的 5 位长有符号整数进行设置”、 “获取偏移量 4567 上的 31 位长无符号整数”等操作。 此外， BITFIELD 命令还可以对指定的整数执行加法操作和减法操作， 并且这些操作可以通过设置妥善地处理计算时出现的溢出情况。
+    - BITFIELD 命令可以在一次调用中同时对多个位范围进行操作： 它接受一系列待执行的操作作为参数， 并返回一个数组作为回复， 数组中的每个元素就是对应操作的执行结果。
+    - ⭐⭐ bitfield 支持很多子命令等内容
 - 数据库命令
   - EXISTS
-  - 返回值
-  - 代码示例
   - TYPE
-  - 返回值
-  - 代码示例
+    - 不存在 返回 null
   - RENAME
-  - 返回值
-  - 代码示例
   - RENAMENX
-  - 返回值
-  - 代码示例
+    - 这个命令,可以处理 rename 遇到 新名字重复的问题
   - MOVE
-  - 返回值
-  - 代码示例
+    - MOVE KEY DB 移动到另一个db中, 遇到已存在/不存在move没啥效果
   - DEL
-  - 返回值
-  - 代码示例
   - RANDOMKEY
-  - 返回值
-  - 代码示例
+    - 随机取一个key
   - DBSIZE
-  - 返回值
-  - 代码示例
+    - 当前数据库 key的数量
   - KEYS
-  - 返回值
-  - 代码示例
+    - KEYS pattern
+    - 查找所有符合给定模式 pattern 的 key ， 比如说：
+      - KEYS * 匹配数据库中所有 key 。
+      - KEYS h?llo 匹配 hello ， hallo 和 hxllo 等。
+      - KEYS h*llo 匹配 hllo 和 heeeeello 等。
+      - KEYS h[ae]llo 匹配 hello 和 hallo ，但不匹配 hillo 。
+      - 特殊符号用 \ 隔开。
   - SCAN
-  - SCAN 命令的基本用法
-  - SCAN 命令的保证（guarantees）
-  - SCAN 命令每次执行返回的元素数量
-  - COUNT 选项
-  - MATCH 选项
-  - 并发执行多个迭代
-  - 中途停止迭代
-  - 使用错误的游标进行增量式迭代
-  - 迭代终结的保证
-  - 返回值
+    - SCAN cursor [MATCH pattern] [COUNT count]
+    - SCAN 命令及其相关的 SSCAN 命令、 HSCAN 命令和 ZSCAN 命令都用于增量地迭代（incrementally iterate）一集元素（a collection of elements）：
+    - SCAN 命令是一个基于游标的迭代器（cursor based iterator）： SCAN 命令每次被调用之后， 都会向用户返回一个新的游标， 用户在下次迭代时需要使用这个新游标作为 SCAN 命令的游标参数， 以此来延续之前的迭代过程。
+    - 当 SCAN 命令的游标参数被设置为 0 时， 服务器将开始一次新的迭代， 而当服务器向用户返回值为 0 的游标时， 表示迭代已结束。
+    - SCAN 命令每次执行返回的元素数量
+      - 增量式迭代命令并不保证每次执行都返回某个给定数量的元素
+      - 增量式命令甚至可能会返回零个元素， 但只要命令返回的游标不是 0 ， 应用程序就不应该将迭代视作结束。
+      - 实际使用中
+        - 对于一个大数据集来说， 增量式迭代命令每次最多可能会返回数十个元素；
+        - 而对于一个足够小的数据集来说， 如果这个数据集的底层表示为编码数据结构（encoded data structure，适用于是小集合键、小哈希键和小有序集合键）， 那么增量迭代命令将在一次调用中返回数据集中的所有元素。
+    - COUNT 选项 , 默认 10
+      - 基本上， COUNT 选项的作用就是让用户告知迭代命令， 在每次迭代中应该从数据集里返回多少元素。
+      - 虽然 COUNT 选项只是对增量式迭代命令的一种提示（hint）， 但是在大多数情况下， 这种提示都是有效的。
+    - MATCH 选项
+      - 和 KEYS 命令一样， 增量式迭代命令也可以通过提供一个 glob 风格的模式参数， 让命令只返回和给定模式相匹配的元素， 这一点可以通过在执行增量式迭代命令时， 通过给定 MATCH `<pattern>` 参数来实现。
+    - 并发执行多个迭代
+    - 中途停止迭代
+    - 使用错误的游标进行增量式迭代
+    - 迭代终结的保证
+    - 返回值
+      - SCAN 命令、 SSCAN 命令、 HSCAN 命令和 ZSCAN 命令都返回一个包含两个元素的 multi-bulk 回复： 回复的第一个元素是字符串表示的无符号 64 位整数（游标）， 回复的第二个元素是另一个 multi-bulk 回复， 这个 multi-bulk 回复包含了本次被迭代的元素。
+      - SCAN 命令返回的每个元素都是一个数据库键。
+      - SSCAN 命令返回的每个元素都是一个集合成员。
+      - HSCAN 命令返回的每个元素都是一个键值对，一个键值对由一个键和一个值组成。
+      - ZSCAN 命令返回的每个元素都是一个有序集合元素，一个有序集合元素由一个成员（member）和一个分值（score）组成。
   - SORT
-  - 一般 SORT 用法
-  - 使用 ALPHA 修饰符对字符串进行排序
-  - 使用 LIMIT 修饰符限制返回结果
-  - 使用外部 key 进行排序
-  - 保存排序结果
-  - 返回值
+    - SORT key [BY pattern] [LIMIT offset count] [GET pattern [GET pattern …]] [ASC | DESC] [ALPHA] [STORE destination]
+    - 返回或保存给定列表、集合、有序集合 key 中经过排序的元素。
+    - 排序默认以数字作为对象，值被解释为双精度浮点数，然后进行比较。
+    - 一般 SORT 用法
+      - 最简单的 SORT 使用方法是 SORT key 和 SORT key DESC
+    - 使用 ALPHA 修饰符对字符串进行排序
+    - 使用 LIMIT 修饰符限制返回结果
+    - 使用外部 key 进行排序, 这个需要举例子才明白, 重要的是`BY`关键字
+    - 还有更多使用方法 🔺🔺🔺🔺🔺🔺🔺
   - FLUSHDB
-  - 返回值
-  - 代码示例
   - FLUSHALL
-  - 返回值
   - SELECT
-  - 返回值
-  - 代码示例
+    - 切换数据库
   - SWAPDB
-  - 返回值
-  - 代码示例
+    - 两个db里面数据替换
 - 自动过期
   - EXPIRE
   - EXPIREAT
+    - 不同在于 EXPIREAT 命令接受的时间参数是 UNIX 时间戳(unix timestamp)。
   - TTL
+    - 以秒为单位，返回给定 key 的剩余生存时间(TTL, time to live)。
   - PERSIST
+    - 移除给定 key 的生存时间，将这个 key 从“易失的”(带生存时间 key )转换成“持久的”(一个不带生存时间、永不过期的 key )。
   - PEXPIRE
+    - 毫秒
   - PEXPIREAT
+    - 毫秒时间戳
   - PTTL
 - 事务
   - MULTI
+    - 标记事务开始
   - EXEC
+    - 执行事务中的命令
+    - 假如某个(或某些) key 正处于 WATCH 命令的监视之下，且事务块中有和这个(或这些) key 相关的命令，那么 EXEC 命令只在这个(或这些) key 没有被其他命令所改动的情况下执行并生效，否则该事务被打断(abort)。
   - DISCARD
+    - 取消事务，放弃执行事务块内的所有命令。
+    - 如果正在使用 WATCH 命令监视某个(或某些) key，那么取消所有监视，等同于执行命令 UNWATCH 。
   - 返回值
-  - 代码示例
+    - 总是返回ok
   - WATCH
+    - WATCH key [key …]
+    - 监视一个(或多个) key ，如果在事务执行之前这个(或这些) key 被其他命令所改动，那么事务将被打断。
   - UNWATCH
 - LUA脚本
   - EVAL
+    - EVAL script numkeys key [key …] arg [arg …]
+    - 脚本原子性: redis使用单个lua解释器去运行所有脚本,redis保证脚本原子性运行.这和使用multi / exec 事务类似
+    - ⭐错误处理
+      - redis.call 发生错误,脚本停止,并返回一个脚本错误
+      - redis.pcall 不引发raise错误,返回一个带 err域的lua表(table)
+    - 纯函数脚本: ⭐在编写脚本方面，一个重要的要求就是，脚本应该被写成纯函数(pure function)。
+    - 为了保证 "纯函数脚本",Redis做了一些限制
+      - Lua没有访问系统时间或其他内部状态的命令
+      - Lua脚本中执行 随机类型 命令的时候,会报错,例如: RANDOMKEY, TIME
+      - 每当lua脚本调用那些返回无序元素的命令时,执行命令所得的数据在返回给lua之前会执行一个静默的字典序排序,例如: 因为 Redis 的 Set 保存的是无序的元素，所以在 Redis 命令行客户端中直接执行 SMEMBERS key ，返回的元素是无序的，但是，假如在脚本中执行 redis.call("smembers", KEYS[1]) ，那么返回的总是排过序的元素。
+      - 对 Lua 的伪随机数生成函数 math.random 和 math.randomseed 进行修改，使得每次在运行新脚本的时候，总是拥有同样的 seed 值。这意味着，每次运行脚本时，只要不使用 math.randomseed ，那么 math.random 产生的随机数序列总是相同的。
+    - ⭐ 全局变量保护
+      - 为了防止不必要的数据泄漏进 Lua 环境， Redis 脚本不允许创建全局变量。如果一个脚本需要在多次执行之间维持某种状态，它应该使用 Redis key 来进行状态保存。
+      - ⭐ 需要定义变量,全部加上 local 字段就行了
+    - 库 Redis内置Lua解释器加载了以下lua库
+      - base
+      - table
+      - string
+      - math
+      - debug
+      - cjson  这是个很快的 json库,其他都是lua的标准库
+      - cmsgpack
+    - ⭐ 沙箱(sandbox)和最大执行时间
+      - 通常脚本在毫秒级别内完成
+      - 默认最大执行时间是5秒
+      - 当脚本达到最大执行时间
+        - Redis 记录一个脚本正在超时运行
+        - Redis 开始重新接受其他客户端的命令请求，但是只有 SCRIPT KILL 和 SHUTDOWN NOSAVE 两个命令会被处理，对于其他命令请求， Redis 服务器只是简单地返回 BUSY 错误。
+        - 可以使用 SCRIPT KILL 命令将一个仅执行只读命令的脚本杀死，因为只读命令并不修改数据，因此杀死这个脚本并不破坏数据的完整性
+        - 如果脚本已经执行过写命令，那么唯一允许执行的操作就是 SHUTDOWN NOSAVE ，它通过停止服务器来阻止当前数据集写入磁盘
+    - 流水线(pipeline)上下文(context)中的 EVALSHA
+      - 建议: 流水线中用 eval命令,避免 evalsha出现 noscript: 这会导致流水线没法重新执行
+      - 建议:检查流水线中要用到的所有命令，找到其中的 EVAL 命令，并使用 SCRIPT EXISTS sha1 [sha1 …] 命令检查要用到的脚本是不是全都已经保存在缓存里面了。如果所需的全部脚本都可以在缓存里找到，那么就可以放心地将所有 EVAL 命令改成 EVALSHA 命令，否则的话，就要在流水线的顶端(top)将缺少的脚本用 SCRIPT LOAD script 命令加上去。
   - EVALSHA
   - SCRIPT_LOAD
+    - 加载一个脚本到缓存中,但是不执行
   - SCRIPT_EXISTS
   - SCRIPT_FLUSH
   - SCRIPT_KILL
+    - 杀死当前正在执行的lua脚本,当且仅当这个脚本没有执行过任何写操作时,这个命令才生效
 - 持久化
   - SAVE
+    - SAVE 命令执行一个同步保存操作，将当前 Redis 实例的所有数据快照(snapshot)以 RDB 文件的形式保存到硬盘。
   - BGSAVE
+    - 在后台异步(Asynchronously)保存当前数据库的数据到磁盘。
   - BGREWRITEAOF
+    - 执行一个 AOF文件 重写操作。重写会创建一个当前 AOF 文件的体积优化版本。
   - LASTSAVE
+    - 返回最近一次 Redis 成功将数据保存到磁盘上的时间，以 UNIX 时间戳格式表示。
 - 发布于订阅
   - PUBLISH
   - SUBSCRIBE
