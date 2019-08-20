@@ -11,8 +11,8 @@ https://www.jianshu.com/p/f27db5d05731
 # 想办法全局设置
 
 搜索到了一大堆方法，无外几种情况
-- 1.修改SpringBoot参数，设置utf8
-- 2.添加WebFilter，在filter中拦访问，把request与response的 content-type 与 charset 设置为需要的格式
+- 1.修改SpringBoot参数，设置utf8 
+- 2.添加WebFilter，在filter中拦访问，把request与response的 content-type 与 charset 设置为需要的格式 
 - 3.配置HttpMessageConverter，提供对应返回值类型的HttpMessageConverter,进行调整  （WebMvcConfigurationSupport）
 - 4.配置 content negotiation ：（WebMvcConfigurationSupport）
 
@@ -221,4 +221,219 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
 }
 
 ```
+
+## 原因探究
+
+在配置文件，WebFilter，还有controller里面，我们都尝试把Response 的content-type / charset 设置成我们想要的模式，为什么不可行
+
+- 首先要明确一定，我们使用RestController，返回的内容应该被放入ResponseBody里面
+- 通过一波断点调试
+
+
+
+- 启动
+  - NioEndpoint 启动
+- 接受请求
+  - AbstractProtocol工作，ConnectionHandler工作
+  - CoyoteAdapter工作（连接器）
+  - 解析信息等等细节
+- filter执行
+- 开始服务service （不是Mvc的service，是 HttpServlet开始工作）
+  - dispatcher servlet 开始工作，分发请求
+  - HandlerAdapter 发现这是个 带有@RequestMaping 注解的 method
+    - RequestMappingHandlerAdapter
+    - 调用对应的注解方法
+  - 我们便携的controller#method 开始工作 并返回一个值
+  - HandlerMethodReturnValueHandlerComposite 中使用 HandlerMethodArgumentResolver 来处理我们方法中的返回值
+    - RequestResponseBodyMethodProcessor 处理返回值 （因为我们用的RestController ，相当于使用 了 @ResoponseBody 注解）
+    - 使用 MessageConverter 处理返回值
+      
+```java
+	protected <T> void writeWithMessageConverters(@Nullable T value, MethodParameter returnType,
+			ServletServerHttpRequest inputMessage, ServletServerHttpResponse outputMessage)
+			throws IOException, HttpMediaTypeNotAcceptableException, HttpMessageNotWritableException {
+
+		Object body; // ⭐ 这是我们的返回值
+		Class<?> valueType; // ⭐ 返回值类型，如果用我的aop那么是string，不用的话可能是很多情况
+		Type targetType; // ⭐ Http协议下，传输内容是文本的，所以这String
+
+		if (value instanceof CharSequence) {
+			body = value.toString();
+			valueType = String.class;
+			targetType = String.class;
+		}
+		else {
+			body = value;
+			valueType = getReturnValueType(body, returnType);
+			targetType = GenericTypeResolver.resolveType(getGenericType(returnType), returnType.getContainingClass());
+		}
+
+		if (isResourceType(value, returnType)) {
+			outputMessage.getHeaders().set(HttpHeaders.ACCEPT_RANGES, "bytes");
+			if (value != null && inputMessage.getHeaders().getFirst(HttpHeaders.RANGE) != null &&
+					outputMessage.getServletResponse().getStatus() == 200) {
+				Resource resource = (Resource) value;
+				try {
+					List<HttpRange> httpRanges = inputMessage.getHeaders().getRange();
+					outputMessage.getServletResponse().setStatus(HttpStatus.PARTIAL_CONTENT.value());
+					body = HttpRange.toResourceRegions(httpRanges, resource);
+					valueType = body.getClass();
+					targetType = RESOURCE_REGION_LIST_TYPE;
+				}
+				catch (IllegalArgumentException ex) {
+					outputMessage.getHeaders().set(HttpHeaders.CONTENT_RANGE, "bytes */" + resource.contentLength());
+					outputMessage.getServletResponse().setStatus(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE.value());
+				}
+			}
+		}
+        // ⭐ 目标mediaType
+		MediaType selectedMediaType = null;
+        // ⭐ 获取outputMessage 里面的MediaType 为null
+        // ⭐ 这个outputMessage 对象实例，是通过一个名为 createOutputMessage方法创建的，AbstractMessageConverterMethodProcessor#createOutputMessage
+        // ⭐ 类型为ServletServerHttpResponse 下面展示一下这个类的结构
+		MediaType contentType = outputMessage.getHeaders().getContentType();
+		if (contentType != null && contentType.isConcrete()) { // 这里不满足条件
+			if (logger.isDebugEnabled()) {
+				logger.debug("Found 'Content-Type:" + contentType + "' in response");
+			}
+			selectedMediaType = contentType; 
+		}
+		else {
+			HttpServletRequest request = inputMessage.getServletRequest();
+			List<MediaType> acceptableTypes = getAcceptableMediaTypes(request);// ⭐ 这里的是 application/json;charset=UTF-8
+                                                                               // 这是为什么方法 4 能够生效的重点
+                                                                               // 这个方法是： 如果能找到恰好匹配的就返回匹配的，否则返回全部
+                                                                               
+			List<MediaType> producibleTypes = getProducibleMediaTypes(request, valueType, targetType);
+              // 三种MediaType 会被放到这个list里面： 1. RequestMappings 里面写着的，如果写了，就只返回这一个
+              //                                    2. 可用的 messageConverter 能够支持的各种 mediatype ，如果有就返回这个
+              //                                    3. 上面两个都没有，返回全部 */*
+              // 这里有四个选项 0 = {MediaType@9968} "text/plain"
+              //               1 = {MediaType@9783} "*/*"
+              //               2 = {MediaType@9910} "application/json"
+              //               3 = {MediaType@9969} "application/*+json"
+
+			if (body != null && producibleTypes.isEmpty()) {
+				throw new HttpMessageNotWritableException(
+						"No converter found for return value of type: " + valueType);
+			}
+			List<MediaType> mediaTypesToUse = new ArrayList<>(); 
+			for (MediaType requestedType : acceptableTypes) {
+				for (MediaType producibleType : producibleTypes) {
+					if (requestedType.isCompatibleWith(producibleType)) {
+                        // isCompatibleWith 规则： 如果两者有一个使用* 通配，那么可以匹配
+                        //                        如果两者的mimeType一样， subtype 一样也匹配
+                        //                        对于包含+ 的情况，也进行匹配,没特地注意看细节
+						mediaTypesToUse.add(getMostSpecificMediaType(requestedType, producibleType));
+					}
+				}
+			}
+            // ⭐ 上面这个循环找出可用的mediaType application/json;charset=UTF-8
+			if (mediaTypesToUse.isEmpty()) {
+				if (body != null) {
+					throw new HttpMediaTypeNotAcceptableException(producibleTypes);
+				}
+				if (logger.isDebugEnabled()) {
+					logger.debug("No match for " + acceptableTypes + ", supported: " + producibleTypes);
+				}
+				return;
+			}
+
+			MediaType.sortBySpecificityAndQuality(mediaTypesToUse);
+
+			for (MediaType mediaType : mediaTypesToUse) {
+				if (mediaType.isConcrete()) {
+					selectedMediaType = mediaType;
+					break;
+				}
+				else if (mediaType.isPresentIn(ALL_APPLICATION_MEDIA_TYPES)) {
+					selectedMediaType = MediaType.APPLICATION_OCTET_STREAM;
+					break;
+				}
+			}
+
+			if (logger.isDebugEnabled()) {
+				logger.debug("Using '" + selectedMediaType + "', given " +
+						acceptableTypes + " and supported " + producibleTypes);
+			}
+		}
+
+		if (selectedMediaType != null) {  
+			selectedMediaType = selectedMediaType.removeQualityValue();
+			for (HttpMessageConverter<?> converter : this.messageConverters) { // ⭐ 循环找到合适的messageConverter 处理数据
+				GenericHttpMessageConverter genericConverter = (converter instanceof GenericHttpMessageConverter ?
+						(GenericHttpMessageConverter<?>) converter : null);
+				if (genericConverter != null ?
+						((GenericHttpMessageConverter) converter).canWrite(targetType, valueType, selectedMediaType) :
+						converter.canWrite(valueType, selectedMediaType)) {
+					body = getAdvice().beforeBodyWrite(body, returnType, selectedMediaType,
+							(Class<? extends HttpMessageConverter<?>>) converter.getClass(),
+							inputMessage, outputMessage);
+					if (body != null) {
+						Object theBody = body;
+						LogFormatUtils.traceDebug(logger, traceOn ->
+								"Writing [" + LogFormatUtils.formatValue(theBody, !traceOn) + "]");
+						addContentDispositionHeader(inputMessage, outputMessage);
+						if (genericConverter != null) {
+							genericConverter.write(body, targetType, selectedMediaType, outputMessage);
+						}
+						else { // ⭐ 使用 selectMediaType 处理 outputMessage
+                               // ⭐ 在write方法里面，这个selectedMediaType 会被写道 outputMesage的header里面
+                               // ⭐ 如果selectedMediaType 为空，当前具体的MessageConverter 支持什么就改成什么
+                               // ⭐ 具体的Messageconverter 例如StringMessageConverter 提供了 默认值，再所有情况匹配不到的时候，总还有一个
+							((HttpMessageConverter) converter).write(body, selectedMediaType, outputMessage);
+						}
+					}
+					else {
+						if (logger.isDebugEnabled()) {
+							logger.debug("Nothing to write: null body");
+						}
+					}
+					return;
+				}
+			}
+		}
+
+		if (body != null) {
+			throw new HttpMediaTypeNotAcceptableException(this.allSupportedMediaTypes);
+		}
+	}
+```
+> ! 上面的流程说明了 ， 在 RestController 或者说 ResponseBody 注解模式下，我们在 filter 或者 controller#method里面操作 response对象，设置contentType是没有效果的
+
+> 关于方法4， 设置 negotiation ，如果不设置，默认情况是 */* 接受一切，如果协商过后还是这样，或者为空 接受一切的情况下，对于StringMessageConverter 就会使用默认值
+
+AbstractMessageConverterMethodProcessor#createOutputMessage
+
+```java
+
+
+	protected ServletServerHttpResponse createOutputMessage(NativeWebRequest webRequest) {
+		HttpServletResponse response = webRequest.getNativeResponse(HttpServletResponse.class);
+		Assert.state(response != null, "No HttpServletResponse");
+		return new ServletServerHttpResponse(response);
+	}
+```
+
+
+- outputMessage / ServletServerHttpResponse
+  - servletResponse / ResponseFacade
+    - response / Response
+      - 这里有很多成员，我就找我们本次分析中需要的
+      - coyoteResponse / Response （⭐ 这是最初始的Response）
+        - 同样省略很多内容
+        - contentType = "application/json"
+        - charset = UTF-8
+  - headers / ServletReponseHttpHeaders  size = 0
+  - headersWritten = false
+  - bodyUsed = false
+
+
+  ## 更加优雅的方案
+
+  > ResponseBodyAdivce
+
+  在以上所记录的的折腾过程中，我发现了一条 灰色注释，提到了ResponseBodyAdvice，同时也说明了，ResponseBodyAdvice应该可以起作用
+
+  作用： 在 @ResponseBody/ResponseEntity 返回之后， HttpMessageConverter 处理之前，提供配置 response的入口 
 
