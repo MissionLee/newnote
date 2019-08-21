@@ -48,6 +48,7 @@
   - 修改application.properties中的几个参数
   - 配置WebFilter，并修改response的content-type
   - 在RestController的Handler对应的 method里面，修改response的content-type
+  - postHandle 不可用
 
 ## SpringMVC对于Http请求的处理流程
 
